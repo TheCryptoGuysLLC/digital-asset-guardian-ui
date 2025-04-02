@@ -6,43 +6,42 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
     const html = await response.text();
 
-    // Log the raw response for debugging
-    console.log("Raw response:", html);
+    // Log raw response for debugging
+    console.log("Raw response from v4:", html);
 
-    // Extract userHtml string—broader search
+    // Try extracting userHtml first
+    let jsonString;
     const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
     const userHtmlEnd = html.indexOf('","ncc"');
-    if (userHtmlStart === -1 || userHtmlEnd === -1) {
-      // Fallback: try broader JSON extraction
+    if (userHtmlStart !== -1 && userHtmlEnd !== -1) {
+      jsonString = html.substring(userHtmlStart, userHtmlEnd);
+    } else {
+      // Fallback: find any JSON starting with {"portfolio":
       const jsonStart = html.indexOf('{"portfolio":');
-      const jsonEnd = html.lastIndexOf('}');
-      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON data found in response");
-      const jsonString = html.substring(jsonStart, jsonEnd + 1);
-      console.log("Fallback JSON:", jsonString);
-
-      const data = JSON.parse(jsonString);
-      return {
-        statusCode: 200,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-      };
+      const jsonEnd = html.lastIndexOf('}') + 1;
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+        jsonString = html.substring(jsonStart, jsonEnd);
+      } else {
+        throw new Error("No JSON-like data found in response");
+      }
     }
 
-    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
-    const jsonString = jsonStringEscaped
+    // Log extracted JSON string
+    console.log("Extracted JSON string:", jsonString);
+
+    // Decode escaped string—minimal unescaping
+    const decodedJson = jsonString
       .replace(/\\"/g, '"')   // Escaped quotes
       .replace(/\\n/g, '\n')  // Newlines
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
 
+    // Parse the JSON
     let data;
     try {
-      data = JSON.parse(jsonString);
-      delete data.gasPrices; // Remove gasPrices as planned
+      data = JSON.parse(decodedJson);
+      delete data.gasPrices; // Remove gasPrices as agreed
     } catch (parseError) {
-      throw new Error(`JSON parsing failed: ${parseError.message}\nRaw string: ${jsonString}`);
+      throw new Error(`JSON parsing failed: ${parseError.message}\nDecoded string: ${decodedJson}`);
     }
 
     return {
