@@ -6,13 +6,22 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
     const html = await response.text();
 
-    // Extract JSON from HTML
-    const jsonStart = html.indexOf("{");
-    const jsonEnd = html.lastIndexOf("}") + 1;
-    if (jsonStart === -1 || jsonEnd === -1) throw new Error("No valid JSON found in response");
-    const jsonString = html.substring(jsonStart, jsonEnd);
+    // Find the JSON string inside goog.script.init
+    const initStart = html.indexOf('goog.script.init("') + 'goog.script.init("'.length;
+    const initEnd = html.indexOf('", "", undefined, true , false  , "false",');
+    if (initStart === -1 || initEnd === -1) throw new Error("No JSON string found in goog.script.init");
+    const jsonStringEscaped = html.substring(initStart, initEnd);
 
-    // Validate and parse JSON
+    // Decode escaped string (e.g., \x22 -> ")
+    const jsonString = jsonStringEscaped
+      .replace(/\\x22/g, '"')  // Unescape quotes
+      .replace(/\\x5b/g, '[')  // Unescape [
+      .replace(/\\x5d/g, ']')  // Unescape ]
+      .replace(/\\x7b/g, '{')  // Unescape {
+      .replace(/\\x7d/g, '}')  // Unescape }
+      .replace(/\\\\/g, '\\'); // Unescape backslashes
+
+    // Parse the JSON
     let data;
     try {
       data = JSON.parse(jsonString);
