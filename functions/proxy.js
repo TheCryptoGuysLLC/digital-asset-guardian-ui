@@ -6,24 +6,41 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
     const html = await response.text();
 
-    // Extract userHtml string directly
+    // Log the raw response for debugging
+    console.log("Raw response:", html);
+
+    // Extract userHtml string—broader search
     const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
     const userHtmlEnd = html.indexOf('","ncc"');
-    if (userHtmlStart === -1 || userHtmlEnd === -1) throw new Error("No userHtml string found in response");
-    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
+    if (userHtmlStart === -1 || userHtmlEnd === -1) {
+      // Fallback: try broader JSON extraction
+      const jsonStart = html.indexOf('{"portfolio":');
+      const jsonEnd = html.lastIndexOf('}');
+      if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON data found in response");
+      const jsonString = html.substring(jsonStart, jsonEnd + 1);
+      console.log("Fallback JSON:", jsonString);
 
-    // Decode escaped string—minimal unescaping
+      const data = JSON.parse(jsonString);
+      return {
+        statusCode: 200,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      };
+    }
+
+    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
     const jsonString = jsonStringEscaped
       .replace(/\\"/g, '"')   // Escaped quotes
       .replace(/\\n/g, '\n')  // Newlines
-      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode (e.g., \u2013 -> –)
+      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
 
-    // Parse the JSON
     let data;
     try {
       data = JSON.parse(jsonString);
-      // Remove gasPrices to avoid parsing issues
-      delete data.gasPrices;
+      delete data.gasPrices; // Remove gasPrices as planned
     } catch (parseError) {
       throw new Error(`JSON parsing failed: ${parseError.message}\nRaw string: ${jsonString}`);
     }
