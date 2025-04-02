@@ -2,9 +2,9 @@
   "name": "digital-asset-guardian-ui",
   "version": "1.0.0",
   "dependencies": {
-    "node-fetch": "^2.6.1"
+    "node-fetch": "^3.3.2"  // Updated to v3 for modern Node
   },
   "engines": {
-    "node": "16.x"
+    "node": "18.x"  // Match Netlify’s default (v18 as of 2025)
   }
 }
