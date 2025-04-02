@@ -12,14 +12,13 @@ exports.handler = async (event, context) => {
     if (initStart === -1 || initEnd === -1) throw new Error("No JSON string found in goog.script.init");
     const jsonStringEscaped = html.substring(initStart, initEnd);
 
-    // Decode escaped string—targeted unescaping
+    // Decode escaped string—basic unescaping
     const jsonString = jsonStringEscaped
       .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Unicode
-      .replace(/\\\\/g, '\\') // Double backslashes to single
+      .replace(/\\\\/g, '\\') // Double backslashes
       .replace(/\\"/g, '"')   // Escaped quotes
-      .replace(/\\n/g, '\n')  // Newlines
-      .replace(/([^\x5c])(\|)/g, '$1\\|'); // Escape pipes not already escaped
+      .replace(/\\n/g, '\n'); // Newlines
 
     // Parse the outer JSON
     let data;
@@ -27,7 +26,10 @@ exports.handler = async (event, context) => {
       data = JSON.parse(jsonString);
       // Extract and parse the nested userHtml JSON
       if (data.userHtml) {
-        data = JSON.parse(data.userHtml);
+        const userHtmlData = JSON.parse(data.userHtml);
+        // Remove gasPrices to avoid parsing issues
+        delete userHtmlData.gasPrices;
+        data = userHtmlData;
       }
     } catch (parseError) {
       throw new Error(`JSON parsing failed: ${parseError.message}\nRaw string: ${jsonString}`);
