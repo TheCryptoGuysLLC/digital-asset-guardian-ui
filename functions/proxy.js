@@ -6,7 +6,8 @@ exports.handler = async (event, context) => {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124",
         "Accept": "application/json, text/html, */*",
-        "Cache-Control": "no-cache"
+        "Cache-Control": "no-cache",
+        "Referer": "https://script.google.com" // Mimic browser context
       }
     });
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
@@ -32,8 +33,16 @@ exports.handler = async (event, context) => {
         jsonString = html.substring(jsonStart, jsonEnd + 1);
         console.log("Extracted raw portfolio JSON:", jsonString);
       } else {
-        console.log("No userHtml or portfolio JSON found in response");
-        throw new Error("No userHtml or portfolio JSON found in response");
+        // Pattern 3: Any JSON-like string
+        const anyJsonStart = html.indexOf('{');
+        const anyJsonEnd = html.lastIndexOf('}');
+        if (anyJsonStart !== -1 && anyJsonEnd !== -1 && anyJsonEnd > anyJsonStart) {
+          jsonString = html.substring(anyJsonStart, anyJsonEnd + 1);
+          console.log("Extracted widest JSON:", jsonString);
+        } else {
+          console.log("No JSON patterns matched in response");
+          throw new Error("No userHtml or portfolio JSON found in response");
+        }
       }
     }
 
@@ -47,6 +56,7 @@ exports.handler = async (event, context) => {
     let data;
     try {
       data = JSON.parse(decodedJson);
+      if (data.userHtml) data = JSON.parse(data.userHtml); // Handle nested userHtml
       delete data.gasPrices; // Remove gasPrices as agreed
     } catch (parseError) {
       throw new Error(`JSON parsing failed: ${parseError.message}\nDecoded string: ${decodedJson}`);
