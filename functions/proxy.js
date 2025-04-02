@@ -12,23 +12,33 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
     const html = await response.text();
 
-    // Log full raw response for debugging
+    // Log full raw response and headers for debugging
     console.log("Full raw response from v4:", html);
+    console.log("Response headers:", JSON.stringify([...response.headers]));
 
-    // Extract userHtml JSON string precisely
+    // Extract JSON string—try multiple patterns
+    let jsonString;
+    // Pattern 1: userHtml within goog.script.init
     const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
     const userHtmlEnd = html.indexOf('","ncc"');
-    if (userHtmlStart === -1 || userHtmlEnd === -1 || userHtmlEnd <= userHtmlStart) {
-      console.log("userHtml markers not found or invalid - start:", userHtmlStart, "end:", userHtmlEnd);
-      throw new Error("No userHtml string found in response");
+    if (userHtmlStart !== -1 && userHtmlEnd !== -1 && userHtmlEnd > userHtmlStart) {
+      jsonString = html.substring(userHtmlStart, userHtmlEnd);
+      console.log("Extracted userHtml JSON:", jsonString);
+    } else {
+      // Pattern 2: Raw JSON (like March 31 success)
+      const jsonStart = html.indexOf('{"portfolio":');
+      const jsonEnd = html.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonString = html.substring(jsonStart, jsonEnd + 1);
+        console.log("Extracted raw portfolio JSON:", jsonString);
+      } else {
+        console.log("No userHtml or portfolio JSON found in response");
+        throw new Error("No userHtml or portfolio JSON found in response");
+      }
     }
-    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
-
-    // Log extracted JSON string
-    console.log("Extracted userHtml JSON:", jsonStringEscaped);
 
     // Decode escaped string—minimal unescaping
-    const decodedJson = jsonStringEscaped
+    const decodedJson = jsonString
       .replace(/\\"/g, '"')   // Escaped quotes
       .replace(/\\n/g, '\n')  // Newlines
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
