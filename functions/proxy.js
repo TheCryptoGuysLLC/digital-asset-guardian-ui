@@ -9,26 +9,19 @@ exports.handler = async (event, context) => {
     // Log raw response for debugging
     console.log("Raw response from v4:", html);
 
-    // Broad search for any JSON-like string
-    const jsonPatterns = [
-      { start: '"userHtml":"', end: '","ncc"' },
-      { start: '{"portfolio":', end: '}' },
-      { start: '{', end: '}' } // Widest net
-    ];
-    let jsonString;
-    for (const pattern of jsonPatterns) {
-      const startIdx = html.indexOf(pattern.start);
-      const endIdx = html.lastIndexOf(pattern.end) + pattern.end.length;
-      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-        jsonString = html.substring(startIdx + (pattern.start === '{' ? 0 : pattern.start.length), endIdx - (pattern.end === '}' ? 0 : pattern.end.length));
-        console.log("Extracted JSON string with pattern", pattern.start, ":", jsonString);
-        break;
-      }
+    // Extract the userHtml JSON string precisely
+    const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
+    const userHtmlEnd = html.indexOf('","ncc"');
+    if (userHtmlStart === -1 || userHtmlEnd === -1) {
+      throw new Error("No userHtml string found in response");
     }
-    if (!jsonString) throw new Error("No JSON-like data found in response");
+    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
+
+    // Log extracted JSON string
+    console.log("Extracted JSON string:", jsonStringEscaped);
 
     // Decode escaped string—minimal unescaping
-    const decodedJson = jsonString
+    const decodedJson = jsonStringEscaped
       .replace(/\\"/g, '"')   // Escaped quotes
       .replace(/\\n/g, '\n')  // Newlines
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
