@@ -19,15 +19,16 @@ exports.handler = async (event, context) => {
       .replace(/\\\\/g, '\\') // Double backslashes
       .replace(/\\"/g, '"')   // Escaped quotes
       .replace(/\\n/g, '\n')  // Newlines
-      .replace(/\\([^xu"])/g, '$1'); // Remove invalid single escapes (e.g., \| -> |)
+      .replace(/\\([^xu"])/g, '$1') // Remove invalid single escapes (e.g., \| -> |)
+      .replace(/([^\\])\\([^\\xu"])/g, '$1\\\\$2'); // Ensure pipes and special chars are properly escaped
 
-    // Parse the JSON
+    // Parse the outer JSON
     let data;
     try {
       data = JSON.parse(jsonString);
-      // Extract the nested userHtml JSON
+      // Extract and parse the nested userHtml JSON
       if (data.userHtml) {
-        data = JSON.parse(data.userHtml); // Parse the inner JSON
+        data = JSON.parse(data.userHtml);
       }
     } catch (parseError) {
       throw new Error(`JSON parsing failed: ${parseError.message}\nRaw string: ${jsonString}`);
