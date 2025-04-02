@@ -17,20 +17,30 @@ exports.handler = async (event, context) => {
     console.log("Full raw response from v4:", html);
     console.log("Response headers:", JSON.stringify([...response.headers]));
 
-    // Extract userHtml JSON string precisely
-    const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
-    const userHtmlEnd = html.indexOf('","ncc"');
-    if (userHtmlStart === -1 || userHtmlEnd === -1 || userHtmlEnd <= userHtmlStart) {
-      console.log("userHtml markers not found or invalid - start:", userHtmlStart, "end:", userHtmlEnd);
-      throw new Error("No userHtml string found in response");
+    // Extract userHtml JSON string—case-insensitive search
+    const htmlLower = html.toLowerCase(); // Handle case sensitivity
+    const userHtmlStart = htmlLower.indexOf('"userhtml":"') + '"userhtml":"'.length;
+    const userHtmlEnd = htmlLower.indexOf('","ncc"');
+    let jsonString;
+    if (userHtmlStart !== -1 && userHtmlEnd !== -1 && userHtmlEnd > userHtmlStart) {
+      jsonString = html.substring(userHtmlStart, userHtmlEnd); // Use original html for substring
+      console.log("Extracted userHtml JSON:", jsonString);
+    } else {
+      console.log("userHtml markers not found - start:", userHtmlStart, "end:", userHtmlEnd);
+      // Fallback: extract raw JSON like March 31
+      const jsonStart = html.indexOf('{"portfolio":');
+      const jsonEnd = html.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonString = html.substring(jsonStart, jsonEnd + 1);
+        console.log("Extracted raw portfolio JSON:", jsonString);
+      } else {
+        console.log("No JSON patterns matched in response");
+        throw new Error("No userHtml or portfolio JSON found in response");
+      }
     }
-    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
-
-    // Log extracted JSON string
-    console.log("Extracted userHtml JSON:", jsonStringEscaped);
 
     // Decode escaped string—minimal unescaping
-    const decodedJson = jsonStringEscaped
+    const decodedJson = jsonString
       .replace(/\\"/g, '"')   // Escaped quotes
       .replace(/\\n/g, '\n')  // Newlines
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
