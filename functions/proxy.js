@@ -12,18 +12,23 @@ exports.handler = async (event, context) => {
     if (initStart === -1 || initEnd === -1) throw new Error("No JSON string found in goog.script.init");
     const jsonStringEscaped = html.substring(initStart, initEnd);
 
-    // Decode escaped string with broader unescaping
+    // Decode escaped string with comprehensive unescaping
     const jsonString = jsonStringEscaped
-      .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes (e.g., \x22 -> ")
-      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Unicode (e.g., \u2013 -> –)
+      .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes
+      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Unicode
       .replace(/\\\\/g, '\\') // Double backslashes
       .replace(/\\"/g, '"')   // Escaped quotes
-      .replace(/\\n/g, '\n'); // Newlines
+      .replace(/\\n/g, '\n')  // Newlines
+      .replace(/\\([^xu"])/g, '$1'); // Remove invalid single escapes (e.g., \| -> |)
 
     // Parse the JSON
     let data;
     try {
       data = JSON.parse(jsonString);
+      // Extract the nested userHtml JSON
+      if (data.userHtml) {
+        data = JSON.parse(data.userHtml); // Parse the inner JSON
+      }
     } catch (parseError) {
       throw new Error(`JSON parsing failed: ${parseError.message}\nRaw string: ${jsonString}`);
     }
