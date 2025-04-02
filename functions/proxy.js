@@ -7,7 +7,8 @@ exports.handler = async (event, context) => {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124",
         "Accept": "application/json, text/html, */*",
         "Cache-Control": "no-cache",
-        "Referer": "https://script.google.com"
+        "Referer": "https://script.google.com",
+        "Origin": "https://script.google.com"
       }
     });
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
@@ -17,30 +18,32 @@ exports.handler = async (event, context) => {
     console.log("Full raw response from v4:", html);
     console.log("Response headers:", JSON.stringify([...response.headers]));
 
-    // Extract userHtml JSON string—exact case
+    // Extract userHtml JSON string—flexible end marker
     let jsonString;
-    const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
-    const userHtmlEnd = html.indexOf('","ncc"');
-    if (userHtmlStart !== -1 && userHtmlEnd !== -1 && userHtmlEnd > userHtmlStart) {
-      jsonString = html.substring(userHtmlStart, userHtmlEnd);
-      console.log("Extracted userHtml JSON:", jsonString);
-    } else {
-      // Broader end marker fallback
-      const altUserHtmlEnd = html.indexOf('","', userHtmlStart);
-      if (userHtmlStart !== -1 && altUserHtmlEnd !== -1 && altUserHtmlEnd > userHtmlStart) {
-        jsonString = html.substring(userHtmlStart, altUserHtmlEnd);
-        console.log("Extracted userHtml JSON (alt end):", jsonString);
+    const userHtmlStart = html.indexOf('"userHtml":"');
+    if (userHtmlStart !== -1) {
+      const start = userHtmlStart + '"userHtml":"'.length;
+      const nextQuote = html.indexOf('"', start);
+      const nextComma = html.indexOf(',', start);
+      const end = (nextQuote !== -1 && (nextComma === -1 || nextQuote < nextComma)) ? nextQuote : nextComma;
+      if (end !== -1 && end > start) {
+        jsonString = html.substring(start, end);
+        console.log("Extracted userHtml JSON:", jsonString);
       } else {
-        // Fallback: raw JSON like March 31
-        const jsonStart = html.indexOf('{"portfolio":');
-        const jsonEnd = html.lastIndexOf('}');
-        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-          jsonString = html.substring(jsonStart, jsonEnd + 1);
-          console.log("Extracted raw portfolio JSON:", jsonString);
-        } else {
-          console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "userHtml end:", userHtmlEnd, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
-          throw new Error("No userHtml or portfolio JSON found in response");
-        }
+        console.log("userHtml start found but no valid end - start:", userHtmlStart, "next quote:", nextQuote, "next comma:", nextComma);
+      }
+    }
+
+    // Fallback: raw JSON like March 31
+    if (!jsonString) {
+      const jsonStart = html.indexOf('{"portfolio":');
+      const jsonEnd = html.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        jsonString = html.substring(jsonStart, jsonEnd + 1);
+        console.log("Extracted raw portfolio JSON:", jsonString);
+      } else {
+        console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
+        throw new Error("No userHtml or portfolio JSON found in response");
       }
     }
 
