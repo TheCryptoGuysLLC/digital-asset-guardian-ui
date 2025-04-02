@@ -11,15 +11,33 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
     const html = await response.text();
 
-    // Log full raw response for debugging
+    // Log full raw response and headers for debugging
     console.log("Full raw response from v4:", html);
+    console.log("Response headers:", JSON.stringify([...response.headers]));
 
     // Extract userHtml JSON string precisely
     const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
     const userHtmlEnd = html.indexOf('","ncc"');
     if (userHtmlStart === -1 || userHtmlEnd === -1) {
       console.log("userHtml markers not found - start:", userHtmlStart, "end:", userHtmlEnd);
-      throw new Error("No userHtml string found in response");
+      // Fallback: extract any JSON-like string
+      const jsonStart = html.indexOf('{"portfolio":');
+      const jsonEnd = html.lastIndexOf('}');
+      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+        const jsonString = html.substring(jsonStart, jsonEnd + 1);
+        console.log("Extracted portfolio JSON:", jsonString);
+        const data = JSON.parse(jsonString);
+        delete data.gasPrices; // Remove gasPrices as agreed
+        return {
+          statusCode: 200,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(data)
+        };
+      }
+      throw new Error("No userHtml or portfolio JSON found in response");
     }
     const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
 
