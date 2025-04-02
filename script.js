@@ -1,20 +1,10 @@
 async function fetchPortfolio() {
-  const url = "https://script.google.com/macros/s/AKfycbz273eq-2tvp0Pv-n9t5mBiisTcvjYmsjA-TyTfdS57D2nLMdohIgmCB_WXQptlXFpv/exec?email=testuser@example.com&tier=pro";
+  const url = "/.netlify/functions/proxy"; // Netlify function endpoint
   try {
-    const response = await fetch(url, { mode: "cors" }); // Add CORS mode
+    const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-    const html = await response.text();
-    console.log("Raw response:", html); // Log raw output
-
-    // Strip HTML wrapper
-    const jsonStart = html.indexOf("{");
-    const jsonEnd = html.lastIndexOf("}") + 1;
-    if (jsonStart === -1 || jsonEnd === -1) throw new Error("No JSON found in response");
-    const jsonString = html.slice(jsonStart, jsonEnd);
-    console.log("Extracted JSON:", jsonString); // Log extracted JSON
-
-    const data = JSON.parse(jsonString);
-    console.log("Parsed data:", data); // Log parsed data
+    const data = await response.json();
+    console.log("Parsed data:", data);
 
     // Display portfolio
     const portfolioDiv = document.getElementById("portfolio");
