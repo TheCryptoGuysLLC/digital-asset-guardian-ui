@@ -9,7 +9,8 @@ exports.handler = async (event, context) => {
         "Cache-Control": "no-cache",
         "Referer": "https://script.google.com",
         "Origin": "https://script.google.com",
-        "Accept-Encoding": "gzip, deflate, br" // Match browser encoding
+        "Accept-Encoding": "gzip, deflate, br",
+        "Host": "script.google.com"
       }
     });
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
@@ -25,13 +26,11 @@ exports.handler = async (event, context) => {
     if (userHtmlStart !== -1) {
       const start = userHtmlStart + '"userHtml":"'.length;
       const nextQuote = html.indexOf('"', start);
-      const nextComma = html.indexOf(',', start);
-      const end = (nextQuote !== -1 && (nextComma === -1 || nextQuote < nextComma)) ? nextQuote : nextComma;
-      if (end !== -1 && end > start) {
-        jsonString = html.substring(start, end);
+      if (nextQuote !== -1 && nextQuote > start) {
+        jsonString = html.substring(start, nextQuote);
         console.log("Extracted userHtml JSON:", jsonString);
       } else {
-        console.log("userHtml start found but no valid end - start:", userHtmlStart, "next quote:", nextQuote, "next comma:", nextComma);
+        console.log("userHtml start found but no valid end - start:", userHtmlStart, "next quote:", nextQuote);
       }
     }
 
