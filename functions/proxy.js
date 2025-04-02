@@ -8,7 +8,8 @@ exports.handler = async (event, context) => {
         "Accept": "application/json, text/html, */*",
         "Cache-Control": "no-cache",
         "Referer": "https://script.google.com",
-        "Origin": "https://script.google.com"
+        "Origin": "https://script.google.com",
+        "Accept-Encoding": "gzip, deflate, br" // Match browser encoding
       }
     });
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
