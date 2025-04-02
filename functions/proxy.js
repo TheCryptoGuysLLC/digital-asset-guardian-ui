@@ -11,40 +11,23 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
     const html = await response.text();
 
-    // Log full raw response and headers for debugging
+    // Log full raw response for debugging
     console.log("Full raw response from v4:", html);
-    console.log("Response headers:", JSON.stringify([...response.headers]));
 
-    // First attempt: Extract userHtml JSON string
-    let jsonString;
+    // Extract userHtml JSON string precisely
     const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
     const userHtmlEnd = html.indexOf('","ncc"');
-    if (userHtmlStart !== -1 && userHtmlEnd !== -1) {
-      jsonString = html.substring(userHtmlStart, userHtmlEnd);
-      console.log("Extracted userHtml JSON:", jsonString);
-    } else {
-      // Fallback: Check for raw JSON or portfolio block
-      const jsonStart = html.indexOf('{"portfolio":');
-      const jsonEnd = html.lastIndexOf('}');
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        jsonString = html.substring(jsonStart, jsonEnd + 1);
-        console.log("Extracted portfolio JSON:", jsonString);
-      } else {
-        // Widest net: Any JSON-like string
-        const anyJsonStart = html.indexOf('{');
-        const anyJsonEnd = html.lastIndexOf('}');
-        if (anyJsonStart !== -1 && anyJsonEnd !== -1 && anyJsonEnd > anyJsonStart) {
-          jsonString = html.substring(anyJsonStart, anyJsonEnd + 1);
-          console.log("Extracted widest JSON:", jsonString);
-        } else {
-          console.log("No JSON patterns matched in response");
-          throw new Error("No JSON-like data found in response");
-        }
-      }
+    if (userHtmlStart === -1 || userHtmlEnd === -1) {
+      console.log("userHtml markers not found - start:", userHtmlStart, "end:", userHtmlEnd);
+      throw new Error("No userHtml string found in response");
     }
+    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
+
+    // Log extracted JSON string
+    console.log("Extracted userHtml JSON:", jsonStringEscaped);
 
     // Decode escaped string—minimal unescaping
-    const decodedJson = jsonString
+    const decodedJson = jsonStringEscaped
       .replace(/\\"/g, '"')   // Escaped quotes
       .replace(/\\n/g, '\n')  // Newlines
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
@@ -53,7 +36,6 @@ exports.handler = async (event, context) => {
     let data;
     try {
       data = JSON.parse(decodedJson);
-      if (data.userHtml) data = JSON.parse(data.userHtml); // Handle nested userHtml
       delete data.gasPrices; // Remove gasPrices as agreed
     } catch (parseError) {
       throw new Error(`JSON parsing failed: ${parseError.message}\nDecoded string: ${decodedJson}`);
