@@ -17,25 +17,30 @@ exports.handler = async (event, context) => {
     console.log("Full raw response from v4:", html);
     console.log("Response headers:", JSON.stringify([...response.headers]));
 
-    // Extract userHtml JSON string—case-insensitive search
-    const htmlLower = html.toLowerCase(); // Handle case sensitivity
-    const userHtmlStart = htmlLower.indexOf('"userhtml":"') + '"userhtml":"'.length;
-    const userHtmlEnd = htmlLower.indexOf('","ncc"');
+    // Extract userHtml JSON string—exact case
     let jsonString;
+    const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
+    const userHtmlEnd = html.indexOf('","ncc"');
     if (userHtmlStart !== -1 && userHtmlEnd !== -1 && userHtmlEnd > userHtmlStart) {
-      jsonString = html.substring(userHtmlStart, userHtmlEnd); // Use original html for substring
+      jsonString = html.substring(userHtmlStart, userHtmlEnd);
       console.log("Extracted userHtml JSON:", jsonString);
     } else {
-      console.log("userHtml markers not found - start:", userHtmlStart, "end:", userHtmlEnd);
-      // Fallback: extract raw JSON like March 31
-      const jsonStart = html.indexOf('{"portfolio":');
-      const jsonEnd = html.lastIndexOf('}');
-      if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-        jsonString = html.substring(jsonStart, jsonEnd + 1);
-        console.log("Extracted raw portfolio JSON:", jsonString);
+      // Broader end marker fallback
+      const altUserHtmlEnd = html.indexOf('","', userHtmlStart);
+      if (userHtmlStart !== -1 && altUserHtmlEnd !== -1 && altUserHtmlEnd > userHtmlStart) {
+        jsonString = html.substring(userHtmlStart, altUserHtmlEnd);
+        console.log("Extracted userHtml JSON (alt end):", jsonString);
       } else {
-        console.log("No JSON patterns matched in response");
-        throw new Error("No userHtml or portfolio JSON found in response");
+        // Fallback: raw JSON like March 31
+        const jsonStart = html.indexOf('{"portfolio":');
+        const jsonEnd = html.lastIndexOf('}');
+        if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+          jsonString = html.substring(jsonStart, jsonEnd + 1);
+          console.log("Extracted raw portfolio JSON:", jsonString);
+        } else {
+          console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "userHtml end:", userHtmlEnd, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
+          throw new Error("No userHtml or portfolio JSON found in response");
+        }
       }
     }
 
