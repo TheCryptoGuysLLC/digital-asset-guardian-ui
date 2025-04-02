@@ -12,15 +12,13 @@ exports.handler = async (event, context) => {
     if (initStart === -1 || initEnd === -1) throw new Error("No JSON string found in goog.script.init");
     const jsonStringEscaped = html.substring(initStart, initEnd);
 
-    // Decode escaped string with comprehensive unescaping
+    // Decode escaped string—minimal unescaping to preserve valid JSON
     const jsonString = jsonStringEscaped
       .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Unicode
-      .replace(/\\\\/g, '\\') // Double backslashes
+      .replace(/\\\\/g, '\\') // Double backslashes to single
       .replace(/\\"/g, '"')   // Escaped quotes
-      .replace(/\\n/g, '\n')  // Newlines
-      .replace(/\\([^xu"])/g, '$1') // Remove invalid single escapes (e.g., \| -> |)
-      .replace(/([^\\])\\([^\\xu"])/g, '$1\\\\$2'); // Ensure pipes and special chars are properly escaped
+      .replace(/\\n/g, '\n'); // Newlines—leave | as-is
 
     // Parse the outer JSON
     let data;
