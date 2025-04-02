@@ -20,7 +20,7 @@ exports.handler = async (event, context) => {
     console.log("Full raw response from v4:", html);
     console.log("Response headers:", JSON.stringify([...response.headers]));
 
-    // Extract userHtml JSON string—flexible end marker
+    // Extract userHtml JSON string—exact marker from logs
     let jsonString;
     const userHtmlStart = html.indexOf('"userHtml":"');
     if (userHtmlStart !== -1) {
