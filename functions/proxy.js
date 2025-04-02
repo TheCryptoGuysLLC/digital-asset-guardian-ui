@@ -5,7 +5,7 @@ exports.handler = async (event, context) => {
     const response = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124",
-        "Accept": "application/json, text/html"
+        "Accept": "application/json, text/html, */*"
       }
     });
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
@@ -14,19 +14,30 @@ exports.handler = async (event, context) => {
     // Log raw response for debugging
     console.log("Raw response from v4:", html);
 
-    // Extract userHtml JSON string precisely
-    const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
-    const userHtmlEnd = html.indexOf('","ncc"');
-    if (userHtmlStart === -1 || userHtmlEnd === -1) {
-      throw new Error("No userHtml string found in response");
+    // Aggressive search for JSON-like string
+    let jsonString;
+    const patterns = [
+      { start: '"userHtml":"', end: '","ncc"' }, // Primary target
+      { start: '{"portfolio":', end: '}' },      // Fallback: portfolio JSON
+      { start: '{"functionNames":', end: '}' },  // Fallback: outer goog.script.init
+      { start: '{', end: '}' }                   // Widest net
+    ];
+    for (const pattern of patterns) {
+      const startIdx = html.indexOf(pattern.start);
+      const endIdx = html.lastIndexOf(pattern.end) + pattern.end.length;
+      if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+        jsonString = html.substring(startIdx + (pattern.start === '{' ? 0 : pattern.start.length), endIdx - (pattern.end === '}' ? 0 : pattern.end.length));
+        console.log(`Extracted JSON with pattern '${pattern.start}':`, jsonString);
+        break;
+      }
     }
-    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
-
-    // Log extracted JSON string
-    console.log("Extracted userHtml JSON:", jsonStringEscaped);
+    if (!jsonString) {
+      console.log("No JSON patterns matched in response");
+      throw new Error("No JSON-like data found in response");
+    }
 
     // Decode escaped string—minimal unescaping
-    const decodedJson = jsonStringEscaped
+    const decodedJson = jsonString
       .replace(/\\"/g, '"')   // Escaped quotes
       .replace(/\\n/g, '\n')  // Newlines
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
@@ -35,6 +46,7 @@ exports.handler = async (event, context) => {
     let data;
     try {
       data = JSON.parse(decodedJson);
+      if (data.userHtml) data = JSON.parse(data.userHtml); // Handle nested userHtml
       delete data.gasPrices; // Remove gasPrices as agreed
     } catch (parseError) {
       throw new Error(`JSON parsing failed: ${parseError.message}\nDecoded string: ${decodedJson}`);
