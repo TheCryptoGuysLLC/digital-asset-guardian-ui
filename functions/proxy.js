@@ -6,31 +6,24 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
     const html = await response.text();
 
-    // Extract JSON string from goog.script.init
-    const initStart = html.indexOf('goog.script.init("') + 'goog.script.init("'.length;
-    const initEnd = html.indexOf('", "", undefined, true , false  , "false",');
-    if (initStart === -1 || initEnd === -1) throw new Error("No JSON string found in goog.script.init");
-    const jsonStringEscaped = html.substring(initStart, initEnd);
+    // Extract userHtml string directly
+    const userHtmlStart = html.indexOf('"userHtml":"') + '"userHtml":"'.length;
+    const userHtmlEnd = html.indexOf('","ncc"');
+    if (userHtmlStart === -1 || userHtmlEnd === -1) throw new Error("No userHtml string found in response");
+    const jsonStringEscaped = html.substring(userHtmlStart, userHtmlEnd);
 
-    // Decode escaped string—basic unescaping
+    // Decode escaped string—minimal unescaping
     const jsonString = jsonStringEscaped
-      .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes
-      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Unicode
-      .replace(/\\\\/g, '\\') // Double backslashes
       .replace(/\\"/g, '"')   // Escaped quotes
-      .replace(/\\n/g, '\n'); // Newlines
+      .replace(/\\n/g, '\n')  // Newlines
+      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode (e.g., \u2013 -> –)
 
-    // Parse the outer JSON
+    // Parse the JSON
     let data;
     try {
       data = JSON.parse(jsonString);
-      // Extract and parse the nested userHtml JSON
-      if (data.userHtml) {
-        const userHtmlData = JSON.parse(data.userHtml);
-        // Remove gasPrices to avoid parsing issues
-        delete userHtmlData.gasPrices;
-        data = userHtmlData;
-      }
+      // Remove gasPrices to avoid parsing issues
+      delete data.gasPrices;
     } catch (parseError) {
       throw new Error(`JSON parsing failed: ${parseError.message}\nRaw string: ${jsonString}`);
     }
