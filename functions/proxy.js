@@ -22,35 +22,41 @@ exports.handler = async (event, context) => {
     console.log("Response headers:", JSON.stringify([...response.headers]));
     console.log("Response length:", html.length); // Debug string length
 
-    // Extract userHtml JSON string—exact marker from logs
+    // Extract userHtml JSON string—use known position
     let jsonString;
-    const userHtmlMarker = '"userHtml":"'; // Exact string from logs
-    let userHtmlStart = html.indexOf(userHtmlMarker);
-    console.log("userHtmlMarker search result - start:", userHtmlStart); // Debug marker position
-    if (userHtmlStart === -1) {
-      // Debug: manually extract around 'userHtml' to confirm presence
-      const userHtmlAny = html.indexOf('userHtml');
-      console.log("Any 'userHtml' occurrence:", userHtmlAny);
-      if (userHtmlAny !== -1) {
-        const snippetStart = Math.max(0, userHtmlAny - 20);
-        const snippetEnd = Math.min(html.length, userHtmlAny + 100);
-        console.log("Extended snippet around 'userHtml':", html.substring(snippetStart, snippetEnd));
-        // Corrected forced extraction: start after '"userHtml":"'
-        userHtmlStart = html.indexOf(userHtmlMarker, userHtmlAny - userHtmlMarker.length);
-        console.log("Adjusted userHtmlMarker search result - start:", userHtmlStart);
-      }
-    }
-
-    if (userHtmlStart !== -1) {
-      const start = userHtmlStart + userHtmlMarker.length;
-      const nextQuote = html.indexOf('"', start);
-      console.log("Next quote position:", nextQuote); // Debug end marker
-      if (nextQuote !== -1 && nextQuote > start) {
-        jsonString = html.substring(start, nextQuote);
-        console.log("Extracted userHtml JSON:", jsonString);
+    const userHtmlAny = html.indexOf('userHtml');
+    console.log("Any 'userHtml' occurrence:", userHtmlAny); // Debug position
+    if (userHtmlAny !== -1) {
+      const snippetStart = Math.max(0, userHtmlAny - 20);
+      const snippetEnd = Math.min(html.length, userHtmlAny + 100);
+      console.log("Extended snippet around 'userHtml':", html.substring(snippetStart, snippetEnd));
+      // Extract from '"userHtml":"' using known position
+      const userHtmlMarker = '"userHtml":"';
+      const userHtmlStart = html.indexOf(userHtmlMarker, userHtmlAny - userHtmlMarker.length);
+      console.log("userHtmlMarker search result - start:", userHtmlStart); // Debug marker position
+      if (userHtmlStart !== -1) {
+        const start = userHtmlStart + userHtmlMarker.length;
+        const nextQuote = html.indexOf('"', start);
+        console.log("Next quote position:", nextQuote); // Debug end marker
+        if (nextQuote !== -1 && nextQuote > start) {
+          jsonString = html.substring(start, nextQuote);
+          console.log("Extracted userHtml JSON:", jsonString);
+        } else {
+          console.log("userHtml start found but no valid end - start:", userHtmlStart, "next quote:", nextQuote);
+          throw new Error("Failed to extract userHtml JSON - no valid end marker");
+        }
       } else {
-        console.log("userHtml start found but no valid end - start:", userHtmlStart, "next quote:", nextQuote);
-        throw new Error("Failed to extract userHtml JSON - no valid end marker");
+        // Fallback: extract from 'userHtml' position manually
+        const start = html.indexOf(':"', userHtmlAny) + 2;
+        const nextQuote = html.indexOf('"', start);
+        console.log("Fallback forced start position:", start, "next quote:", nextQuote);
+        if (start !== -1 && nextQuote !== -1 && nextQuote > start) {
+          jsonString = html.substring(start, nextQuote);
+          console.log("Fallback extracted userHtml JSON:", jsonString);
+        } else {
+          console.log("Fallback extraction failed - start:", start, "next quote:", nextQuote);
+          throw new Error("Failed to extract userHtml JSON - no valid markers");
+        }
       }
     } else {
       // Fallback: raw JSON like March 31
@@ -61,7 +67,7 @@ exports.handler = async (event, context) => {
         jsonString = html.substring(jsonStart, jsonEnd + 1);
         console.log("Extracted raw portfolio JSON:", jsonString);
       } else {
-        console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
+        console.log("No JSON patterns matched - userHtml any:", userHtmlAny, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
         throw new Error("No userHtml or portfolio JSON found in response");
       }
     }
