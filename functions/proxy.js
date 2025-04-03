@@ -22,7 +22,7 @@ exports.handler = async (event, context) => {
     console.log("Response length:", html.length);
 
     // Find the outer userHtml
-    const userHtmlAny = html.indexOf('userHtml');
+    const userHtmlAny = html.indexOf('"userHtml"');
     console.log("Any 'userHtml' occurrence:", userHtmlAny);
     if (userHtmlAny === -1) throw new Error("No userHtml found in response");
 
@@ -31,35 +31,31 @@ exports.handler = async (event, context) => {
     const rawSnippet = html.substring(snippetStart, snippetEnd);
     console.log("Raw snippet around 'userHtml':", rawSnippet);
 
-    // Find the end of the outer userHtml value
-    let outerQuoteStart = html.indexOf('"', userHtmlAny + 8); // After "userHtml":
-    if (outerQuoteStart === -1) throw new Error("No opening quote for outer userHtml value");
-    let outerQuoteEnd = outerQuoteStart + 1;
-    let inQuotes = true;
-    let escapeNext = false;
-    while (outerQuoteEnd < html.length && inQuotes) {
-      const char = html[outerQuoteEnd];
-      if (char === '\\' && !escapeNext) {
-        escapeNext = true;
-      } else if (char === '"' && !escapeNext) {
-        inQuotes = false;
-      } else {
-        escapeNext = false;
-      }
-      outerQuoteEnd++;
+    // Find the end of the goog.script.init args
+    const initStart = html.indexOf('goog.script.init');
+    if (initStart === -1) throw new Error("No goog.script.init found");
+    let initEnd = initStart;
+    let parenCount = 0;
+    while (initEnd < html.length) {
+      const char = html[initEnd];
+      if (char === '(') parenCount++;
+      if (char === ')') parenCount--;
+      if (parenCount === 0 && char === ')') break;
+      initEnd++;
     }
-    if (inQuotes) throw new Error("No closing quote found for outer userHtml value");
-    outerQuoteEnd--; // Back to the closing quote
-    console.log("Outer userHtml end quote:", outerQuoteEnd);
+    console.log("goog.script.init end:", initEnd);
 
-    // Find the script tag after the outer userHtml
-    const scriptStart = html.indexOf('<script>', outerQuoteEnd);
-    if (scriptStart === -1) throw new Error("No script tag found after outer userHtml");
+    // Find the script tag after goog.script.init
+    const scriptStart = html.indexOf('<script>', initEnd);
+    if (scriptStart === -1) {
+      console.log("No script tag found after init - snippet:", html.substring(initEnd, initEnd + 50));
+      throw new Error("No script tag found after goog.script.init");
+    }
     console.log("Script start index:", scriptStart);
 
-    // Find the nested userHtml within the script tag
-    const nestedUserHtml = html.indexOf('"userHtml":"', scriptStart);
-    if (nestedUserHtml === -1) throw new Error("No nested userHtml found in script");
+    // Find the nested userHtml within the response
+    const nestedUserHtml = html.indexOf('"userHtml":"', userHtmlAny);
+    if (nestedUserHtml === -1) throw new Error("No nested userHtml found");
     console.log("Nested userHtml index:", nestedUserHtml);
 
     const colonIndex = html.indexOf(':', nestedUserHtml);
@@ -93,25 +89,25 @@ exports.handler = async (event, context) => {
       .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 
     let end = start;
-    let braceCountInner = 0;
-    let inQuotesInner = false;
+    let braceCount = 0;
+    let inQuotes = false;
     for (let i = 0; i < jsonString.length; i++) {
       const char = jsonString[i];
       if (i < 100 || i > jsonString.length - 100 || char === '{' || char === '}' || char === '"') {
-        console.log(`Char at ${start + i}: '${char}' (code: ${char.charCodeAt(0)}), inQuotes: ${inQuotesInner}, braceCount: ${braceCountInner}`);
+        console.log(`Char at ${start + i}: '${char}' (code: ${char.charCodeAt(0)}), inQuotes: ${inQuotes}, braceCount: ${braceCount}`);
       }
       if (char === '"' && (i === 0 || jsonString[i - 1] !== '\\')) {
-        inQuotesInner = !inQuotesInner;
-        console.log(`Quote toggle at ${start + i}: inQuotes = ${inQuotesInner}`);
+        inQuotes = !inQuotes;
+        console.log(`Quote toggle at ${start + i}: inQuotes = ${inQuotes}`);
       }
-      if (!inQuotesInner) {
+      if (!inQuotes) {
         if (char === '{') {
-          braceCountInner++;
-          console.log(`Open brace at ${start + i}: braceCount = ${braceCountInner}`);
+          braceCount++;
+          console.log(`Open brace at ${start + i}: braceCount = ${braceCount}`);
         } else if (char === '}') {
-          braceCountInner--;
-          console.log(`Close brace at ${start + i}: braceCount = ${braceCountInner}`);
-          if (braceCountInner === 0) {
+          braceCount--;
+          console.log(`Close brace at ${start + i}: braceCount = ${braceCount}`);
+          if (braceCount === 0) {
             end = start + i + 1;
             break;
           }
