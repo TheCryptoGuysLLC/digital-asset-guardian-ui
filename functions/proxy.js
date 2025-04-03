@@ -46,6 +46,9 @@ exports.handler = async (event, context) => {
         jsonString = html.substring(jsonStart, jsonEnd + 1);
         console.log("Extracted raw portfolio JSON:", jsonString);
       } else {
+        // Additional debug: check if 'userHtml' exists in any form
+        const userHtmlAny = html.indexOf('userHtml');
+        console.log("Any 'userHtml' occurrence:", userHtmlAny);
         console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
         throw new Error("No userHtml or portfolio JSON found in response");
       }
