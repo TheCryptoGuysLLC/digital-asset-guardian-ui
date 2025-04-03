@@ -23,10 +23,13 @@ exports.handler = async (event, context) => {
 
     // Extract userHtml JSON string—exact marker from logs
     let jsonString;
-    const userHtmlStart = html.indexOf('"userHtml":"');
+    const userHtmlMarker = '"userHtml":"'; // Exact string from logs
+    const userHtmlStart = html.indexOf(userHtmlMarker);
+    console.log("userHtmlMarker search result - start:", userHtmlStart); // Debug marker position
     if (userHtmlStart !== -1) {
-      const start = userHtmlStart + '"userHtml":"'.length;
+      const start = userHtmlStart + userHtmlMarker.length;
       const nextQuote = html.indexOf('"', start);
+      console.log("Next quote position:", nextQuote); // Debug end marker
       if (nextQuote !== -1 && nextQuote > start) {
         jsonString = html.substring(start, nextQuote);
         console.log("Extracted userHtml JSON:", jsonString);
@@ -38,6 +41,7 @@ exports.handler = async (event, context) => {
       // Fallback: raw JSON like March 31
       const jsonStart = html.indexOf('{"portfolio":');
       const jsonEnd = html.lastIndexOf('}');
+      console.log("Fallback search - portfolio start:", jsonStart, "portfolio end:", jsonEnd); // Debug fallback
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         jsonString = html.substring(jsonStart, jsonEnd + 1);
         console.log("Extracted raw portfolio JSON:", jsonString);
@@ -58,6 +62,7 @@ exports.handler = async (event, context) => {
     try {
       data = JSON.parse(decodedJson);
       delete data.gasPrices; // Remove gasPrices as agreed
+      console.log("Parsed JSON data:", JSON.stringify(data)); // Debug parsed output
     } catch (parseError) {
       console.log("JSON parsing failed - decoded string:", decodedJson);
       throw new Error(`JSON parsing failed: ${parseError.message}`);
