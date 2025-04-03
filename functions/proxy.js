@@ -22,22 +22,23 @@ exports.handler = async (event, context) => {
     console.log("Response headers:", JSON.stringify([...response.headers]));
     console.log("Response length:", html.length); // Debug string length
 
-    // Extract userHtml JSON string—use known position
+    // Extract userHtml JSON string—anchor to 'userHtml'
     let jsonString;
     const userHtmlAny = html.indexOf('userHtml');
     console.log("Any 'userHtml' occurrence:", userHtmlAny); // Debug position
     if (userHtmlAny !== -1) {
       const snippetStart = Math.max(0, userHtmlAny - 20);
       const snippetEnd = Math.min(html.length, userHtmlAny + 100);
-      console.log("Extended snippet around 'userHtml':", html.substring(snippetStart, snippetEnd));
-      // Direct extraction from '"userHtml":"'
+      const snippet = html.substring(snippetStart, snippetEnd);
+      console.log("Extended snippet around 'userHtml':", snippet);
+      // Direct extraction from '"userHtml":"' in snippet
       const userHtmlMarker = '"userHtml":"';
-      const markerStart = html.indexOf(userHtmlMarker, snippetStart);
-      console.log("Marker start position:", markerStart); // Debug marker position
-      if (markerStart !== -1) {
-        const start = markerStart + userHtmlMarker.length; // Start after '"userHtml":"'
+      const markerOffset = snippet.indexOf(userHtmlMarker);
+      console.log("Marker offset in snippet:", markerOffset); // Debug offset
+      if (markerOffset !== -1) {
+        const start = snippetStart + markerOffset + userHtmlMarker.length; // Start after '"userHtml":"'
         const nextQuote = html.indexOf('"', start);
-        console.log("Next quote position:", nextQuote); // Debug end marker
+        console.log("Start position:", start, "Next quote position:", nextQuote); // Debug positions
         if (nextQuote !== -1 && nextQuote > start) {
           jsonString = html.substring(start, nextQuote);
           console.log("Extracted userHtml JSON:", jsonString);
