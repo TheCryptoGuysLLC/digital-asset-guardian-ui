@@ -31,13 +31,16 @@ exports.handler = async (event, context) => {
     console.log("Extended snippet around 'userHtml':", snippet);
 
     const userHtmlMarker = '"userHtml":"';
-    const markerOffset = html.indexOf(userHtmlMarker, userHtmlAny);
-    if (markerOffset === -1) throw new Error("userHtml marker not found");
-    const startBase = markerOffset + userHtmlMarker.length;
-    const start = startBase + 1; // Skip \x22, start at \x7b
-    console.log("Adjusted start position to skip quote:", start);
+    const markerOffset = html.indexOf(userHtmlMarker); // Search from start, not userHtmlAny
+    console.log("Marker offset:", markerOffset);
+    if (markerOffset === -1) {
+      console.log("Marker search failed - snippet at 2419:", html.substring(2419, 2430));
+      throw new Error("userHtml marker not found");
+    }
+    const start = markerOffset + userHtmlMarker.length; // Start at \x7b
+    console.log("Start position:", start);
 
-    // Pre-decode the substring to handle \x escapes
+    // Pre-decode the substring
     let jsonString = html.substring(start);
     jsonString = jsonString
       .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
@@ -69,7 +72,7 @@ exports.handler = async (event, context) => {
         }
       }
     }
-    console.log("Start position:", start, "End position:", end);
+    console.log("End position:", end);
 
     if (end <= start) throw new Error("Failed to extract userHtml JSON - no valid end marker");
 
