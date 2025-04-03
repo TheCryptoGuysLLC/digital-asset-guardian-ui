@@ -34,14 +34,15 @@ exports.handler = async (event, context) => {
       const userHtmlMarker = '"userHtml":"';
       const markerOffset = snippet.indexOf(userHtmlMarker);
       console.log("Marker offset in snippet:", markerOffset);
-      const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length + 1 : 34); // ~2420
+      const startBase = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length : 34);
+      const start = startBase + 1; // Skip \x22, start at \x7b (2421)
+      console.log("Adjusted start position to skip quote:", start);
       // Find the end of the JSON object (first balanced })
       let end = start;
       let braceCount = 0;
       let inQuotes = false;
       for (let i = start; i < html.length; i++) {
         const char = html[i];
-        // Toggle inQuotes only on unescaped quotes
         if (char === '"' && (i === 0 || html[i - 1] !== '\\')) {
           inQuotes = !inQuotes;
           console.log(`Quote toggle at ${i}: inQuotes = ${inQuotes}`);
