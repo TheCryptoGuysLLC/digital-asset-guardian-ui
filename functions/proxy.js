@@ -34,27 +34,19 @@ exports.handler = async (event, context) => {
     const decodedSnippet = rawSnippet.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
     console.log("Decoded snippet around 'userHtml':", decodedSnippet);
 
-    const colonIndex = decodedSnippet.indexOf(':', decodedSnippet.indexOf('userHtml'));
+    const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
 
-    // Find the first { after colon in decoded snippet
-    let braceOffset = -1;
-    for (let i = colonIndex + 1; i < decodedSnippet.length; i++) {
-      const char = decodedSnippet[i];
-      console.log(`Char at ${snippetStart + i}: '${char}' (code: ${char.charCodeAt(0)})`);
-      if (char === '{') {
-        braceOffset = i;
-        break;
-      }
+    // Find the raw { position after "userHtml":"
+    const quoteIndex = html.indexOf('"', colonIndex + 1); // Opening quote after colon
+    if (quoteIndex === -1) throw new Error("Quote after colon not found");
+    const start = html.indexOf('\\x7b', quoteIndex); // Raw { position
+    if (start === -1) {
+      console.log("No brace found after quote - raw snippet:", html.substring(quoteIndex, quoteIndex + 50));
+      throw new Error("Opening brace after quote not found");
     }
-    if (braceOffset === -1) {
-      console.log("No brace found after colon - decoded snippet:", decodedSnippet);
-      throw new Error("Opening brace after colon not found");
-    }
-    // Map back to raw string position
-    const start = snippetStart + braceOffset; // Absolute position in raw string
-    console.log("Colon index (in snippet):", colonIndex);
-    console.log("Brace offset (in snippet):", braceOffset);
+    console.log("Colon index:", colonIndex);
+    console.log("Quote index:", quoteIndex);
     console.log("Start position (raw):", start);
     console.log("Char at start (raw):", html[start]);
     console.log("Raw snippet at start:", html.substring(start, start + 50));
