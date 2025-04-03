@@ -36,10 +36,21 @@ exports.handler = async (event, context) => {
       const markerOffset = snippet.indexOf(userHtmlMarker);
       console.log("Marker offset in snippet:", markerOffset); // Debug offset
       const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length + 1 : 34); // ~2420
-      const nextQuote = html.indexOf('"', start);
-      console.log("Start position:", start, "Next quote position:", nextQuote); // Debug positions
-      if (nextQuote !== -1 && nextQuote > start) {
-        jsonString = html.substring(start, nextQuote);
+      // Find the end of the JSON object (first } before ,)
+      let end = start;
+      let braceCount = 0;
+      while (end < html.length) {
+        if (html[end] === '{') braceCount++;
+        else if (html[end] === '}') braceCount--;
+        if (braceCount === 0 && html[end] === '}') {
+          end++; // Include the closing brace
+          break;
+        }
+        end++;
+      }
+      console.log("Start position:", start, "End position:", end); // Debug positions
+      if (end > start) {
+        jsonString = html.substring(start, end);
         console.log("Extracted userHtml JSON (raw):", jsonString); // Raw before decode
         // Decode escaped string—handle all escapes properly
         const decodedJson = jsonString
@@ -68,7 +79,7 @@ exports.handler = async (event, context) => {
           throw new Error(`JSON parsing failed: ${parseError.message}`);
         }
       } else {
-        console.log("No valid end marker - start:", start, "next quote:", nextQuote);
+        console.log("No valid end marker - start:", start, "end:", end);
         throw new Error("Failed to extract userHtml JSON - no valid end marker");
       }
     } else {
