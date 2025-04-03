@@ -20,6 +20,7 @@ exports.handler = async (event, context) => {
     // Log full raw response and headers for debugging
     console.log("Full raw response from v4:", html);
     console.log("Response headers:", JSON.stringify([...response.headers]));
+    console.log("Response length:", html.length); // Debug string length
 
     // Extract userHtml JSON string—exact marker from logs
     let jsonString;
@@ -46,9 +47,14 @@ exports.handler = async (event, context) => {
         jsonString = html.substring(jsonStart, jsonEnd + 1);
         console.log("Extracted raw portfolio JSON:", jsonString);
       } else {
-        // Additional debug: check if 'userHtml' exists in any form
+        // Additional debug: check substrings around 'userHtml'
         const userHtmlAny = html.indexOf('userHtml');
         console.log("Any 'userHtml' occurrence:", userHtmlAny);
+        if (userHtmlAny !== -1) {
+          const snippetStart = Math.max(0, userHtmlAny - 20);
+          const snippetEnd = Math.min(html.length, userHtmlAny + 20);
+          console.log("Snippet around 'userHtml':", html.substring(snippetStart, snippetEnd));
+        }
         console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
         throw new Error("No userHtml or portfolio JSON found in response");
       }
