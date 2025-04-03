@@ -37,32 +37,35 @@ exports.handler = async (event, context) => {
     const colonIndex = decodedSnippet.indexOf(':', decodedSnippet.indexOf('userHtml'));
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
 
-    // Find the first { after colon
-    let startBraceIndex = -1;
+    // Find the first { after colon in decoded snippet
+    let braceOffset = -1;
     for (let i = colonIndex + 1; i < decodedSnippet.length; i++) {
       const char = decodedSnippet[i];
       console.log(`Char at ${snippetStart + i}: '${char}' (code: ${char.charCodeAt(0)})`);
       if (char === '{') {
-        startBraceIndex = snippetStart + i;
+        braceOffset = i;
         break;
       }
     }
-    if (startBraceIndex === -1) {
+    if (braceOffset === -1) {
       console.log("No brace found after colon - decoded snippet:", decodedSnippet);
       throw new Error("Opening brace after colon not found");
     }
-    const start = startBraceIndex; // Start at {
+    // Map back to raw string position
+    const start = snippetStart + braceOffset; // Absolute position in raw string
     console.log("Colon index (in snippet):", colonIndex);
-    console.log("Start brace index (absolute):", startBraceIndex);
-    console.log("Start position:", start);
-    console.log("Char at start:", html[start]);
-    console.log("Snippet at start:", html.substring(start, start + 50));
+    console.log("Brace offset (in snippet):", braceOffset);
+    console.log("Start position (raw):", start);
+    console.log("Char at start (raw):", html[start]);
+    console.log("Raw snippet at start:", html.substring(start, start + 50));
 
+    // Extract and decode from raw string
     let jsonString = html.substring(start);
     jsonString = jsonString
       .replace(/\\"/g, '"')
       .replace(/\\n/g, '\n')
-      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 
     let end = start;
     let braceCount = 0;
@@ -70,7 +73,7 @@ exports.handler = async (event, context) => {
     for (let i = 0; i < jsonString.length; i++) {
       const char = jsonString[i];
       if (i < 100 || i > jsonString.length - 100 || char === '{' || char === '}' || char === '"') {
-        console.log(`Char at ${start + i}: ${char}, inQuotes: ${inQuotes}, braceCount: ${braceCount}`);
+        console.log(`Char at ${start + i}: '${char}' (code: ${char.charCodeAt(0)}), inQuotes: ${inQuotes}, braceCount: ${braceCount}`);
       }
       if (char === '"' && (i === 0 || jsonString[i - 1] !== '\\')) {
         inQuotes = !inQuotes;
