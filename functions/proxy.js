@@ -35,20 +35,22 @@ exports.handler = async (event, context) => {
 
     const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
-    const quoteIndex = html.indexOf('"', colonIndex + 1); // Opening quote of value
-    if (quoteIndex === -1) throw new Error("Quote after colon not found");
 
-    // Manual brace search with detailed logging
+    // Find the first quote followed by { within a tight window
+    let quoteIndex = -1;
     let startBraceIndex = -1;
-    console.log("Searching for brace from quoteIndex:", quoteIndex);
-    for (let i = quoteIndex; i < quoteIndex + 20; i++) { // Wider window
+    for (let i = colonIndex + 1; i < colonIndex + 10; i++) {
       const char = html[i];
       console.log(`Char at ${i}: '${char}' (code: ${char.charCodeAt(0)})`);
-      if (char === '{') {
-        startBraceIndex = i;
-        break;
+      if (char === '"') {
+        quoteIndex = i;
+        if (html[i + 1] === '{') {
+          startBraceIndex = i + 1;
+          break;
+        }
       }
     }
+    if (quoteIndex === -1) throw new Error("Quote after colon not found");
     if (startBraceIndex === -1) {
       console.log("No brace found after quote - snippet:", html.substring(quoteIndex, quoteIndex + 50));
       throw new Error("Opening brace after quote not found");
