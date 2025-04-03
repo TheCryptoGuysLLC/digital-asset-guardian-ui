@@ -30,18 +30,19 @@ exports.handler = async (event, context) => {
     const snippet = html.substring(snippetStart, snippetEnd);
     console.log("Extended snippet around 'userHtml':", snippet);
 
-    // Manual marker skip: Find 'userHtml', then next ':' and '"'
     const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
-    const quoteIndex = html.indexOf('"', colonIndex + 1);
-    if (quoteIndex === -1) throw new Error("Quote after colon not found");
+    const quoteIndex = html.indexOf('"', colonIndex + 1); // First quote after colon
+    if (quoteIndex === -1 || quoteIndex > colonIndex + 10) { // Sanity check
+      console.log("Quote index too far or not found:", quoteIndex);
+      throw new Error("Quote after colon not found correctly");
+    }
     const start = quoteIndex + 1; // Start at \x7b
     console.log("Colon index:", colonIndex);
     console.log("Quote index:", quoteIndex);
     console.log("Start position:", start);
     console.log("Char at start:", html[start]);
 
-    // Decode the JSON string
     let jsonString = html.substring(start);
     jsonString = jsonString
       .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
@@ -49,13 +50,14 @@ exports.handler = async (event, context) => {
       .replace(/\\n/g, '\n')
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 
-    // Find the end of the JSON object
     let end = start;
     let braceCount = 0;
     let inQuotes = false;
     for (let i = 0; i < jsonString.length; i++) {
       const char = jsonString[i];
-      console.log(`Char at ${start + i}: ${char}, inQuotes: ${inQuotes}, braceCount: ${braceCount}`);
+      if (i < 100 || i > jsonString.length - 100 || char === '{' || char === '}' || char === '"') {
+        console.log(`Char at ${start + i}: ${char}, inQuotes: ${inQuotes}, braceCount: ${braceCount}`);
+      }
       if (char === '"' && (i === 0 || jsonString[i - 1] !== '\\')) {
         inQuotes = !inQuotes;
         console.log(`Quote toggle at ${start + i}: inQuotes = ${inQuotes}`);
@@ -76,7 +78,7 @@ exports.handler = async (event, context) => {
     }
     console.log("End position:", end);
 
-    if (end <= start) throw new Error("Failed to extract userHtml JSON - no valid end marker");
+    if (end === start) throw new Error("Failed to extract userHtml JSON - no valid end marker found");
 
     jsonString = jsonString.substring(0, end - start);
     console.log("Extracted userHtml JSON (raw):", jsonString);
