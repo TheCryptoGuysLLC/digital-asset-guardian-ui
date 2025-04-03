@@ -40,7 +40,31 @@ exports.handler = async (event, context) => {
       console.log("Start position:", start, "Next quote position:", nextQuote); // Debug positions
       if (nextQuote !== -1 && nextQuote > start) {
         jsonString = html.substring(start, nextQuote);
-        console.log("Extracted userHtml JSON:", jsonString);
+        console.log("Extracted userHtml JSON (raw):", jsonString); // Raw before decode
+        // Decode escaped string—minimal unescaping
+        const decodedJson = jsonString
+          .replace(/\\"/g, '"')   // Escaped quotes
+          .replace(/\\n/g, '\n')  // Newlines
+          .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
+        console.log("Decoded JSON:", decodedJson); // Debug decoded string
+        // Parse the JSON
+        let data;
+        try {
+          data = JSON.parse(decodedJson);
+          delete data.gasPrices; // Remove gasPrices as agreed
+          console.log("Parsed JSON data:", JSON.stringify(data)); // Debug parsed output
+          return {
+            statusCode: 200,
+            headers: {
+              "Access-Control-Allow-Origin": "*",
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+          };
+        } catch (parseError) {
+          console.log("JSON parsing failed - decoded string:", decodedJson);
+          throw new Error(`JSON parsing failed: ${parseError.message}`);
+        }
       } else {
         console.log("No valid end marker - start:", start, "next quote:", nextQuote);
         throw new Error("Failed to extract userHtml JSON - no valid end marker");
@@ -57,33 +81,29 @@ exports.handler = async (event, context) => {
         console.log("No JSON patterns matched - userHtml any:", userHtmlAny, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
         throw new Error("No userHtml or portfolio JSON found in response");
       }
+      // Decode and parse fallback
+      const decodedJson = jsonString
+        .replace(/\\"/g, '"')
+        .replace(/\\n/g, '\n')
+        .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      let data;
+      try {
+        data = JSON.parse(decodedJson);
+        delete data.gasPrices;
+        console.log("Parsed JSON data (fallback):", JSON.stringify(data));
+        return {
+          statusCode: 200,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(data)
+        };
+      } catch (parseError) {
+        console.log("JSON parsing failed (fallback) - decoded string:", decodedJson);
+        throw new Error(`JSON parsing failed: ${parseError.message}`);
+      }
     }
-
-    // Decode escaped string—minimal unescaping
-    const decodedJson = jsonString
-      .replace(/\\"/g, '"')   // Escaped quotes
-      .replace(/\\n/g, '\n')  // Newlines
-      .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
-
-    // Parse the JSON
-    let data;
-    try {
-      data = JSON.parse(decodedJson);
-      delete data.gasPrices; // Remove gasPrices as agreed
-      console.log("Parsed JSON data:", JSON.stringify(data)); // Debug parsed output
-    } catch (parseError) {
-      console.log("JSON parsing failed - decoded string:", decodedJson);
-      throw new Error(`JSON parsing failed: ${parseError.message}`);
-    }
-
-    return {
-      statusCode: 200,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    };
   } catch (error) {
     console.log("Error occurred:", error.message);
     return {
