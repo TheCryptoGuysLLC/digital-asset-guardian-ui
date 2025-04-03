@@ -35,13 +35,16 @@ exports.handler = async (event, context) => {
 
     const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
-    const startBraceIndex = html.indexOf('{', colonIndex + 1); // First { after colon
-    if (startBraceIndex === -1) {
-      console.log("No brace found after colon - snippet:", html.substring(colonIndex, colonIndex + 50));
-      throw new Error("Opening brace after colon not found");
+    const quoteIndex = html.indexOf('"', colonIndex + 1); // First quote after colon
+    if (quoteIndex === -1) throw new Error("Quote after colon not found");
+    const startBraceIndex = html.indexOf('{', quoteIndex + 1); // First { after quote
+    if (startBraceIndex === -1 || startBraceIndex > quoteIndex + 10) {
+      console.log("No brace found after quote - snippet:", html.substring(quoteIndex, quoteIndex + 50));
+      throw new Error("Opening brace after quote not found");
     }
     const start = startBraceIndex; // Start at {
     console.log("Colon index:", colonIndex);
+    console.log("Quote index:", quoteIndex);
     console.log("Start brace index:", startBraceIndex);
     console.log("Start position:", start);
     console.log("Char at start:", html[start]);
