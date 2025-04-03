@@ -17,39 +17,44 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
     let html = await response.text();
 
-    console.log("Actual runtime response:", html); // Log exact response
+    console.log("Actual runtime response:", html);
     console.log("Response headers:", JSON.stringify([...response.headers]));
     console.log("Response length:", html.length);
 
+    // Find the outer userHtml
     const userHtmlAny = html.indexOf('userHtml');
     console.log("Any 'userHtml' occurrence:", userHtmlAny);
     if (userHtmlAny === -1) throw new Error("No userHtml found in response");
 
     const snippetStart = Math.max(0, userHtmlAny - 20);
-    const snippetEnd = Math.min(html.length, userHtmlAny + 500); // Big window for diagnostics
+    const snippetEnd = Math.min(html.length, userHtmlAny + 500);
     const rawSnippet = html.substring(snippetStart, snippetEnd);
     console.log("Raw snippet around 'userHtml':", rawSnippet);
 
-    const decodedSnippet = rawSnippet.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-    console.log("Decoded snippet around 'userHtml':", decodedSnippet);
+    // Find the nested userHtml within the script tag
+    const scriptStart = html.indexOf('<script>', userHtmlAny);
+    if (scriptStart === -1) throw new Error("No script tag found after userHtml");
+    const nestedUserHtml = html.indexOf('"userHtml":"', scriptStart);
+    if (nestedUserHtml === -1) throw new Error("No nested userHtml found in script");
 
-    const colonIndex = html.indexOf(':', userHtmlAny);
-    if (colonIndex === -1) throw new Error("Colon after userHtml not found");
+    const colonIndex = html.indexOf(':', nestedUserHtml);
+    if (colonIndex === -1) throw new Error("Colon after nested userHtml not found");
 
     const quoteIndex = html.indexOf('"', colonIndex + 1);
     if (quoteIndex === -1) throw new Error("Quote after colon not found");
 
-    let start = html.indexOf('\\x7b', quoteIndex);
+    let start = html.indexOf('{', quoteIndex);
     if (start === -1) {
-      console.log("No raw \\x7b found, trying decoded { - raw snippet:", html.substring(quoteIndex, quoteIndex + 50));
+      console.log("No { found after nested userHtml - raw snippet:", html.substring(quoteIndex, quoteIndex + 50));
       const decodedHtml = html.substring(quoteIndex).replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
       const braceIndex = decodedHtml.indexOf('{');
       if (braceIndex === -1) {
         console.log("No decoded { found either - decoded snippet:", decodedHtml.substring(0, 50));
-        throw new Error("Opening brace after quote not found in raw or decoded string");
+        throw new Error("Opening brace after nested userHtml not found");
       }
       start = quoteIndex + braceIndex;
     }
+    console.log("Nested userHtml index:", nestedUserHtml);
     console.log("Colon index:", colonIndex);
     console.log("Quote index:", quoteIndex);
     console.log("Start position (raw):", start);
@@ -97,7 +102,7 @@ exports.handler = async (event, context) => {
     console.log("Extracted userHtml JSON (raw):", jsonString);
 
     const data = JSON.parse(jsonString);
-    delete data.gasPrices; // Remove gasPrices as per your original spec
+    delete data.gasPrices;
     console.log("Parsed JSON data:", JSON.stringify(data));
 
     return {
