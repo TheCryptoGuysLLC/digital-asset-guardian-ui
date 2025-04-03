@@ -21,62 +21,26 @@ exports.handler = async (event, context) => {
     console.log("Response headers:", JSON.stringify([...response.headers]));
     console.log("Response length:", html.length);
 
-    // Find the outer userHtml
-    const userHtmlAny = html.indexOf('"userHtml"');
-    console.log("Any 'userHtml' occurrence:", userHtmlAny);
-    if (userHtmlAny === -1) throw new Error("No userHtml found in response");
+    // Find the nested userHtml directly
+    const dataStart = html.indexOf('var data = {"userHtml":"');
+    if (dataStart === -1) throw new Error("No 'var data = {\"userHtml\":\"' found in response");
+    console.log("Data start index:", dataStart);
 
-    const snippetStart = Math.max(0, userHtmlAny - 20);
-    const snippetEnd = Math.min(html.length, userHtmlAny + 500);
-    const rawSnippet = html.substring(snippetStart, snippetEnd);
-    console.log("Raw snippet around 'userHtml':", rawSnippet);
+    const nestedQuote = html.indexOf('"', dataStart + 23); // After 'var data = {"userHtml":"'
+    if (nestedQuote === -1) throw new Error("No quote found after nested userHtml");
+    console.log("Nested quote index:", nestedQuote);
 
-    // Find the end of the goog.script.init args
-    const initStart = html.indexOf('goog.script.init');
-    if (initStart === -1) throw new Error("No goog.script.init found");
-    let initEnd = initStart;
-    let parenCount = 0;
-    while (initEnd < html.length) {
-      const char = html[initEnd];
-      if (char === '(') parenCount++;
-      if (char === ')') parenCount--;
-      if (parenCount === 0 && char === ')') break;
-      initEnd++;
-    }
-    console.log("goog.script.init end:", initEnd);
-
-    // Find the script tag after goog.script.init
-    const scriptStart = html.indexOf('<script>', initEnd);
-    if (scriptStart === -1) {
-      console.log("No script tag found after init - snippet:", html.substring(initEnd, initEnd + 50));
-      throw new Error("No script tag found after goog.script.init");
-    }
-    console.log("Script start index:", scriptStart);
-
-    // Find the nested userHtml within the response
-    const nestedUserHtml = html.indexOf('"userHtml":"', userHtmlAny);
-    if (nestedUserHtml === -1) throw new Error("No nested userHtml found");
-    console.log("Nested userHtml index:", nestedUserHtml);
-
-    const colonIndex = html.indexOf(':', nestedUserHtml);
-    if (colonIndex === -1) throw new Error("Colon after nested userHtml not found");
-
-    const quoteIndex = html.indexOf('"', colonIndex + 1);
-    if (quoteIndex === -1) throw new Error("Quote after colon not found");
-
-    let start = html.indexOf('{', quoteIndex);
+    let start = html.indexOf('{', nestedQuote);
     if (start === -1) {
-      console.log("No { found after nested userHtml - raw snippet:", html.substring(quoteIndex, quoteIndex + 50));
-      const decodedHtml = html.substring(quoteIndex).replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      console.log("No { found - raw snippet:", html.substring(nestedQuote, nestedQuote + 50));
+      const decodedHtml = html.substring(nestedQuote).replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
       const braceIndex = decodedHtml.indexOf('{');
       if (braceIndex === -1) {
-        console.log("No decoded { found either - decoded snippet:", decodedHtml.substring(0, 50));
-        throw new Error("Opening brace after nested userHtml not found");
+        console.log("No decoded { found - decoded snippet:", decodedHtml.substring(0, 50));
+        throw new Error("Opening brace not found after nested userHtml");
       }
-      start = quoteIndex + braceIndex;
+      start = nestedQuote + braceIndex;
     }
-    console.log("Colon index:", colonIndex);
-    console.log("Quote index:", quoteIndex);
     console.log("Start position (raw):", start);
     console.log("Char at start (raw):", html[start]);
     console.log("Raw snippet at start:", html.substring(start, start + 50));
