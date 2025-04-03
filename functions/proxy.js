@@ -31,16 +31,17 @@ exports.handler = async (event, context) => {
     console.log("Extended snippet around 'userHtml':", snippet);
 
     const userHtmlMarker = '"userHtml":"';
-    const markerOffset = html.indexOf(userHtmlMarker); // Search from start, not userHtmlAny
+    const markerOffset = html.indexOf(userHtmlMarker);
     console.log("Marker offset:", markerOffset);
     if (markerOffset === -1) {
-      console.log("Marker search failed - snippet at 2419:", html.substring(2419, 2430));
+      console.log("Marker not found - checking near 2419:", html.substring(2419, 2430));
       throw new Error("userHtml marker not found");
     }
-    const start = markerOffset + userHtmlMarker.length; // Start at \x7b
-    console.log("Start position:", start);
 
-    // Pre-decode the substring
+    const start = markerOffset + userHtmlMarker.length;
+    console.log("Start position:", start);
+    console.log("Char at start:", html[start]);
+
     let jsonString = html.substring(start);
     jsonString = jsonString
       .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
