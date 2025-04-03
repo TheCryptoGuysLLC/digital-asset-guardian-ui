@@ -31,25 +31,30 @@ exports.handler = async (event, context) => {
     const rawSnippet = html.substring(snippetStart, snippetEnd);
     console.log("Raw snippet around 'userHtml':", rawSnippet);
 
-    // Find the end of the goog.script.init JSON object
-    let jsonEnd = userHtmlAny;
-    let braceCount = 0;
-    let inQuotes = false;
-    while (jsonEnd < html.length) {
-      const char = html[jsonEnd];
-      if (char === '"' && html[jsonEnd - 1] !== '\\') inQuotes = !inQuotes;
-      if (!inQuotes) {
-        if (char === '{') braceCount++;
-        if (char === '}') braceCount--;
-        if (braceCount === 0 && char === '}') break; // End of JSON object
+    // Find the end of the outer userHtml value
+    let outerQuoteStart = html.indexOf('"', userHtmlAny + 8); // After "userHtml":
+    if (outerQuoteStart === -1) throw new Error("No opening quote for outer userHtml value");
+    let outerQuoteEnd = outerQuoteStart + 1;
+    let inQuotes = true;
+    let escapeNext = false;
+    while (outerQuoteEnd < html.length && inQuotes) {
+      const char = html[outerQuoteEnd];
+      if (char === '\\' && !escapeNext) {
+        escapeNext = true;
+      } else if (char === '"' && !escapeNext) {
+        inQuotes = false;
+      } else {
+        escapeNext = false;
       }
-      jsonEnd++;
+      outerQuoteEnd++;
     }
-    console.log("JSON object end:", jsonEnd);
+    if (inQuotes) throw new Error("No closing quote found for outer userHtml value");
+    outerQuoteEnd--; // Back to the closing quote
+    console.log("Outer userHtml end quote:", outerQuoteEnd);
 
-    // Find the script tag after the JSON object
-    const scriptStart = html.indexOf('<script>', jsonEnd);
-    if (scriptStart === -1) throw new Error("No script tag found after JSON object");
+    // Find the script tag after the outer userHtml
+    const scriptStart = html.indexOf('<script>', outerQuoteEnd);
+    if (scriptStart === -1) throw new Error("No script tag found after outer userHtml");
     console.log("Script start index:", scriptStart);
 
     // Find the nested userHtml within the script tag
