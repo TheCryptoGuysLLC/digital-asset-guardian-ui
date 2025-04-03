@@ -37,8 +37,8 @@ exports.handler = async (event, context) => {
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
     const quoteIndex = html.indexOf('"', colonIndex + 1); // Opening quote of value
     if (quoteIndex === -1) throw new Error("Quote after colon not found");
-    const startBraceIndex = html.indexOf('{', quoteIndex); // First { after quote
-    if (startBraceIndex === -1 || startBraceIndex > quoteIndex + 5) { // Tight window
+    const startBraceIndex = html.indexOf('{', quoteIndex); // First { starting at quote
+    if (startBraceIndex === -1 || startBraceIndex > quoteIndex + 10) { // Wider window
       console.log("No brace found after quote - snippet:", html.substring(quoteIndex, quoteIndex + 50));
       throw new Error("Opening brace after quote not found");
     }
