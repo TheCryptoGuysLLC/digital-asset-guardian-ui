@@ -43,6 +43,7 @@ exports.handler = async (event, context) => {
       let inQuotes = false;
       for (let i = start; i < html.length; i++) {
         const char = html[i];
+        console.log(`Char at ${i}: ${char}, inQuotes: ${inQuotes}, braceCount: ${braceCount}`);
         if (char === '"' && (i === 0 || html[i - 1] !== '\\')) {
           inQuotes = !inQuotes;
           console.log(`Quote toggle at ${i}: inQuotes = ${inQuotes}`);
