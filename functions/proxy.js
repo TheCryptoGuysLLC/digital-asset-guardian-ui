@@ -31,23 +31,25 @@ exports.handler = async (event, context) => {
     const rawSnippet = html.substring(snippetStart, snippetEnd);
     console.log("Raw snippet around 'userHtml':", rawSnippet);
 
-    // Find the end of the outer userHtml value
-    let outerQuoteEnd = userHtmlAny + 8; // Start after "userHtml"
-    let inQuotes = false;
+    // Find the end of the goog.script.init JSON object
+    let jsonEnd = userHtmlAny;
     let braceCount = 0;
-    while (outerQuoteEnd < html.length) {
-      const char = html[outerQuoteEnd];
-      if (char === '"' && html[outerQuoteEnd - 1] !== '\\') inQuotes = !inQuotes;
-      if (!inQuotes && char === '{') braceCount++;
-      if (!inQuotes && char === '}') braceCount--;
-      if (!inQuotes && braceCount === 0 && char === '"') break;
-      outerQuoteEnd++;
+    let inQuotes = false;
+    while (jsonEnd < html.length) {
+      const char = html[jsonEnd];
+      if (char === '"' && html[jsonEnd - 1] !== '\\') inQuotes = !inQuotes;
+      if (!inQuotes) {
+        if (char === '{') braceCount++;
+        if (char === '}') braceCount--;
+        if (braceCount === 0 && char === '}') break; // End of JSON object
+      }
+      jsonEnd++;
     }
-    console.log("Outer userHtml end quote:", outerQuoteEnd);
+    console.log("JSON object end:", jsonEnd);
 
-    // Find the script tag after the outer userHtml
-    const scriptStart = html.indexOf('<script>', outerQuoteEnd);
-    if (scriptStart === -1) throw new Error("No script tag found after outer userHtml");
+    // Find the script tag after the JSON object
+    const scriptStart = html.indexOf('<script>', jsonEnd);
+    if (scriptStart === -1) throw new Error("No script tag found after JSON object");
     console.log("Script start index:", scriptStart);
 
     // Find the nested userHtml within the script tag
