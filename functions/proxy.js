@@ -31,11 +31,29 @@ exports.handler = async (event, context) => {
     const rawSnippet = html.substring(snippetStart, snippetEnd);
     console.log("Raw snippet around 'userHtml':", rawSnippet);
 
+    // Find the end of the outer userHtml value
+    let outerQuoteEnd = userHtmlAny + 8; // Start after "userHtml"
+    let inQuotes = false;
+    let braceCount = 0;
+    while (outerQuoteEnd < html.length) {
+      const char = html[outerQuoteEnd];
+      if (char === '"' && html[outerQuoteEnd - 1] !== '\\') inQuotes = !inQuotes;
+      if (!inQuotes && char === '{') braceCount++;
+      if (!inQuotes && char === '}') braceCount--;
+      if (!inQuotes && braceCount === 0 && char === '"') break;
+      outerQuoteEnd++;
+    }
+    console.log("Outer userHtml end quote:", outerQuoteEnd);
+
+    // Find the script tag after the outer userHtml
+    const scriptStart = html.indexOf('<script>', outerQuoteEnd);
+    if (scriptStart === -1) throw new Error("No script tag found after outer userHtml");
+    console.log("Script start index:", scriptStart);
+
     // Find the nested userHtml within the script tag
-    const scriptStart = html.indexOf('<script>', userHtmlAny);
-    if (scriptStart === -1) throw new Error("No script tag found after userHtml");
     const nestedUserHtml = html.indexOf('"userHtml":"', scriptStart);
     if (nestedUserHtml === -1) throw new Error("No nested userHtml found in script");
+    console.log("Nested userHtml index:", nestedUserHtml);
 
     const colonIndex = html.indexOf(':', nestedUserHtml);
     if (colonIndex === -1) throw new Error("Colon after nested userHtml not found");
@@ -54,7 +72,6 @@ exports.handler = async (event, context) => {
       }
       start = quoteIndex + braceIndex;
     }
-    console.log("Nested userHtml index:", nestedUserHtml);
     console.log("Colon index:", colonIndex);
     console.log("Quote index:", quoteIndex);
     console.log("Start position (raw):", start);
@@ -69,25 +86,25 @@ exports.handler = async (event, context) => {
       .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 
     let end = start;
-    let braceCount = 0;
-    let inQuotes = false;
+    let braceCountInner = 0;
+    let inQuotesInner = false;
     for (let i = 0; i < jsonString.length; i++) {
       const char = jsonString[i];
       if (i < 100 || i > jsonString.length - 100 || char === '{' || char === '}' || char === '"') {
-        console.log(`Char at ${start + i}: '${char}' (code: ${char.charCodeAt(0)}), inQuotes: ${inQuotes}, braceCount: ${braceCount}`);
+        console.log(`Char at ${start + i}: '${char}' (code: ${char.charCodeAt(0)}), inQuotes: ${inQuotesInner}, braceCount: ${braceCountInner}`);
       }
       if (char === '"' && (i === 0 || jsonString[i - 1] !== '\\')) {
-        inQuotes = !inQuotes;
-        console.log(`Quote toggle at ${start + i}: inQuotes = ${inQuotes}`);
+        inQuotesInner = !inQuotesInner;
+        console.log(`Quote toggle at ${start + i}: inQuotes = ${inQuotesInner}`);
       }
-      if (!inQuotes) {
+      if (!inQuotesInner) {
         if (char === '{') {
-          braceCount++;
-          console.log(`Open brace at ${start + i}: braceCount = ${braceCount}`);
+          braceCountInner++;
+          console.log(`Open brace at ${start + i}: braceCount = ${braceCountInner}`);
         } else if (char === '}') {
-          braceCount--;
-          console.log(`Close brace at ${start + i}: braceCount = ${braceCount}`);
-          if (braceCount === 0) {
+          braceCountInner--;
+          console.log(`Close brace at ${start + i}: braceCount = ${braceCountInner}`);
+          if (braceCountInner === 0) {
             end = start + i + 1;
             break;
           }
