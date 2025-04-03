@@ -35,14 +35,15 @@ exports.handler = async (event, context) => {
       const userHtmlMarker = '"userHtml":"';
       const markerOffset = snippet.indexOf(userHtmlMarker);
       console.log("Marker offset in snippet:", markerOffset); // Debug offset
-      const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length + 1 : 34); // ~2420 if indexOf fails
+      const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length + 1 : 34); // ~2420
       const nextQuote = html.indexOf('"', start);
       console.log("Start position:", start, "Next quote position:", nextQuote); // Debug positions
       if (nextQuote !== -1 && nextQuote > start) {
         jsonString = html.substring(start, nextQuote);
         console.log("Extracted userHtml JSON (raw):", jsonString); // Raw before decode
-        // Decode escaped string—minimal unescaping
+        // Decode escaped string—handle all escapes properly
         const decodedJson = jsonString
+          .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes like \x22
           .replace(/\\"/g, '"')   // Escaped quotes
           .replace(/\\n/g, '\n')  // Newlines
           .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
@@ -83,6 +84,7 @@ exports.handler = async (event, context) => {
       }
       // Decode and parse fallback
       const decodedJson = jsonString
+        .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
         .replace(/\\"/g, '"')
         .replace(/\\n/g, '\n')
         .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
