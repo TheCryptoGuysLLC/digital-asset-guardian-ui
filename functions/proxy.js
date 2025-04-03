@@ -38,10 +38,13 @@ exports.handler = async (event, context) => {
     const quoteIndex = html.indexOf('"', colonIndex + 1); // Opening quote of value
     if (quoteIndex === -1) throw new Error("Quote after colon not found");
 
-    // Manual brace search from quoteIndex
+    // Manual brace search with detailed logging
     let startBraceIndex = -1;
-    for (let i = quoteIndex; i < quoteIndex + 10; i++) {
-      if (html[i] === '{') {
+    console.log("Searching for brace from quoteIndex:", quoteIndex);
+    for (let i = quoteIndex; i < quoteIndex + 20; i++) { // Wider window
+      const char = html[i];
+      console.log(`Char at ${i}: '${char}' (code: ${char.charCodeAt(0)})`);
+      if (char === '{') {
         startBraceIndex = i;
         break;
       }
