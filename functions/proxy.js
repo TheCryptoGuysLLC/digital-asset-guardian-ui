@@ -36,15 +36,20 @@ exports.handler = async (event, context) => {
       const markerOffset = snippet.indexOf(userHtmlMarker);
       console.log("Marker offset in snippet:", markerOffset); // Debug offset
       const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length + 1 : 34); // ~2420
-      // Find the end of the JSON object (first } before ,)
+      // Find the end of the JSON object (first balanced })
       let end = start;
       let braceCount = 0;
+      let inQuotes = false;
       while (end < html.length) {
-        if (html[end] === '{') braceCount++;
-        else if (html[end] === '}') braceCount--;
-        if (braceCount === 0 && html[end] === '}') {
-          end++; // Include the closing brace
-          break;
+        const char = html[end];
+        if (char === '"' && html[end - 1] !== '\\') inQuotes = !inQuotes; // Toggle quote state, ignore escaped quotes
+        if (!inQuotes) {
+          if (char === '{') braceCount++;
+          else if (char === '}') braceCount--;
+          if (braceCount === 0 && char === '}') {
+            end++; // Include the closing brace
+            break;
+          }
         }
         end++;
       }
@@ -104,7 +109,9 @@ exports.handler = async (event, context) => {
       try {
         data = JSON.parse(decodedJson);
         delete data.gasPrices;
-        console.log("Parsed JSON data (fallback):", JSON.stringify(data));
+        console.log("
+
+Parsed JSON data (fallback):", JSON.stringify(data));
         return {
           statusCode: 200,
           headers: {
