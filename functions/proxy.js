@@ -10,7 +10,8 @@ exports.handler = async (event, context) => {
         "Referer": "https://script.google.com",
         "Origin": "https://script.google.com",
         "Accept-Encoding": "gzip, deflate, br",
-        "Host": "script.google.com"
+        "Host": "script.google.com",
+        "Connection": "keep-alive"
       }
     });
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
@@ -42,8 +43,16 @@ exports.handler = async (event, context) => {
         jsonString = html.substring(jsonStart, jsonEnd + 1);
         console.log("Extracted raw portfolio JSON:", jsonString);
       } else {
-        console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
-        throw new Error("No userHtml or portfolio JSON found in response");
+        // Fallback: any JSON-like string
+        const anyJsonStart = html.indexOf('{');
+        const anyJsonEnd = html.lastIndexOf('}');
+        if (anyJsonStart !== -1 && anyJsonEnd !== -1 && anyJsonEnd > anyJsonStart) {
+          jsonString = html.substring(anyJsonStart, anyJsonEnd + 1);
+          console.log("Extracted widest JSON:", jsonString);
+        } else {
+          console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "portfolio start:", jsonStart, "portfolio end:", anyJsonEnd, "any JSON start:", anyJsonStart, "any JSON end:", anyJsonEnd);
+          throw new Error("No userHtml or portfolio JSON found in response");
+        }
       }
     }
 
