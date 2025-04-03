@@ -109,9 +109,7 @@ exports.handler = async (event, context) => {
       try {
         data = JSON.parse(decodedJson);
         delete data.gasPrices;
-        console.log("
-
-Parsed JSON data (fallback):", JSON.stringify(data));
+        console.log("Parsed JSON data (fallback):", JSON.stringify(data)); // Fixed line
         return {
           statusCode: 200,
           headers: {
