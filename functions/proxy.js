@@ -31,11 +31,11 @@ exports.handler = async (event, context) => {
       const snippetEnd = Math.min(html.length, userHtmlAny + 100);
       const snippet = html.substring(snippetStart, snippetEnd);
       console.log("Extended snippet around 'userHtml':", snippet);
-      // Direct extraction: assume '"userHtml":"' is at known offset
+      // Direct extraction: adjust start to after '"userHtml":"'
       const userHtmlMarker = '"userHtml":"';
-      const expectedOffset = snippet.indexOf(userHtmlMarker);
-      console.log("Expected marker offset in snippet:", expectedOffset); // Debug offset
-      const start = snippetStart + (expectedOffset !== -1 ? expectedOffset + userHtmlMarker.length : 22); // Fallback to ~2418 if indexOf fails
+      const markerOffset = snippet.indexOf(userHtmlMarker);
+      console.log("Marker offset in snippet:", markerOffset); // Debug offset
+      const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length : 32); // ~2418 if indexOf fails
       const nextQuote = html.indexOf('"', start);
       console.log("Start position:", start, "Next quote position:", nextQuote); // Debug positions
       if (nextQuote !== -1 && nextQuote > start) {
