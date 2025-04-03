@@ -15,7 +15,7 @@ exports.handler = async (event, context) => {
       }
     });
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
-    const html = await response.text();
+    let html = await response.text();
 
     console.log("Full raw response from v4:", html);
     console.log("Response headers:", JSON.stringify([...response.headers]));
@@ -30,14 +30,17 @@ exports.handler = async (event, context) => {
     const snippet = html.substring(snippetStart, snippetEnd);
     console.log("Extended snippet around 'userHtml':", snippet);
 
+    // Decode escapes before searching
+    html = html.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+
     const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
-    const quoteIndex = html.indexOf('"', colonIndex + 1); // First quote after colon
-    if (quoteIndex === -1 || quoteIndex > colonIndex + 10) { // Sanity check
+    const quoteIndex = html.indexOf('"', colonIndex + 1);
+    if (quoteIndex === -1 || quoteIndex > colonIndex + 10) {
       console.log("Quote index too far or not found:", quoteIndex);
       throw new Error("Quote after colon not found correctly");
     }
-    const start = quoteIndex + 1; // Start at \x7b
+    const start = quoteIndex + 1; // Start at {
     console.log("Colon index:", colonIndex);
     console.log("Quote index:", quoteIndex);
     console.log("Start position:", start);
@@ -45,7 +48,6 @@ exports.handler = async (event, context) => {
 
     let jsonString = html.substring(start);
     jsonString = jsonString
-      .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
       .replace(/\\"/g, '"')
       .replace(/\\n/g, '\n')
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
