@@ -30,18 +30,18 @@ exports.handler = async (event, context) => {
     const snippet = html.substring(snippetStart, snippetEnd);
     console.log("Extended snippet around 'userHtml':", snippet);
 
-    const userHtmlMarker = '"userHtml":"';
-    const markerOffset = html.indexOf(userHtmlMarker);
-    console.log("Marker offset:", markerOffset);
-    if (markerOffset === -1) {
-      console.log("Marker not found - checking near 2419:", html.substring(2419, 2430));
-      throw new Error("userHtml marker not found");
-    }
-
-    const start = markerOffset + userHtmlMarker.length;
+    // Manual marker skip: Find 'userHtml', then next ':' and '"'
+    const colonIndex = html.indexOf(':', userHtmlAny);
+    if (colonIndex === -1) throw new Error("Colon after userHtml not found");
+    const quoteIndex = html.indexOf('"', colonIndex + 1);
+    if (quoteIndex === -1) throw new Error("Quote after colon not found");
+    const start = quoteIndex + 1; // Start at \x7b
+    console.log("Colon index:", colonIndex);
+    console.log("Quote index:", quoteIndex);
     console.log("Start position:", start);
     console.log("Char at start:", html[start]);
 
+    // Decode the JSON string
     let jsonString = html.substring(start);
     jsonString = jsonString
       .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
@@ -49,6 +49,7 @@ exports.handler = async (event, context) => {
       .replace(/\\n/g, '\n')
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 
+    // Find the end of the JSON object
     let end = start;
     let braceCount = 0;
     let inQuotes = false;
