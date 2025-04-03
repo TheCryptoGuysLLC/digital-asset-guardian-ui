@@ -43,10 +43,11 @@ exports.handler = async (event, context) => {
         console.log("Extracted userHtml JSON (raw):", jsonString); // Raw before decode
         // Decode escaped string—handle all escapes properly
         const decodedJson = jsonString
-          .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes like \x22
+          .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes like \x7b
           .replace(/\\"/g, '"')   // Escaped quotes
           .replace(/\\n/g, '\n')  // Newlines
-          .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))); // Unicode
+          .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Unicode
+          .replace(/^[^[{]+/, ''); // Strip any leading garbage before { or [
         console.log("Decoded JSON:", decodedJson); // Debug decoded string
         // Parse the JSON
         let data;
