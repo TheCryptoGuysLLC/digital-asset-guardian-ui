@@ -35,14 +35,14 @@ exports.handler = async (event, context) => {
 
     const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
-    const quoteIndex = html.indexOf('"', colonIndex + 1);
-    if (quoteIndex === -1 || quoteIndex > colonIndex + 10) {
-      console.log("Quote index too far or not found:", quoteIndex);
-      throw new Error("Quote after colon not found correctly");
+    const startBraceIndex = html.indexOf('{', colonIndex + 1); // Find the opening brace
+    if (startBraceIndex === -1 || startBraceIndex > colonIndex + 10) {
+      console.log("Start brace index too far or not found:", startBraceIndex);
+      throw new Error("Opening brace after colon not found correctly");
     }
-    const start = quoteIndex + 1; // Start at {
+    const start = startBraceIndex; // Start at {
     console.log("Colon index:", colonIndex);
-    console.log("Quote index:", quoteIndex);
+    console.log("Start brace index:", startBraceIndex);
     console.log("Start position:", start);
     console.log("Char at start:", html[start]);
 
