@@ -30,11 +30,12 @@ exports.handler = async (event, context) => {
       const snippetStart = Math.max(0, userHtmlAny - 20);
       const snippetEnd = Math.min(html.length, userHtmlAny + 100);
       console.log("Extended snippet around 'userHtml':", html.substring(snippetStart, snippetEnd));
-      // Direct extraction from known position
+      // Direct extraction from '"userHtml":"'
       const userHtmlMarker = '"userHtml":"';
-      const start = snippetStart + html.substring(snippetStart, snippetEnd).indexOf(userHtmlMarker) + userHtmlMarker.length;
-      console.log("Direct extraction start position:", start); // Debug start position
-      if (start > userHtmlAny) { // Ensure we’re past 'userHtml'
+      const markerStart = html.indexOf(userHtmlMarker, snippetStart);
+      console.log("Marker start position:", markerStart); // Debug marker position
+      if (markerStart !== -1) {
+        const start = markerStart + userHtmlMarker.length; // Start after '"userHtml":"'
         const nextQuote = html.indexOf('"', start);
         console.log("Next quote position:", nextQuote); // Debug end marker
         if (nextQuote !== -1 && nextQuote > start) {
@@ -45,7 +46,7 @@ exports.handler = async (event, context) => {
           throw new Error("Failed to extract userHtml JSON - no valid end marker");
         }
       } else {
-        // Fallback: extract from ':"' after userHtmlAny with stricter check
+        // Fallback: extract from ':"' after userHtmlAny
         const startFallback = html.indexOf(':"', userHtmlAny) + 2;
         const nextQuoteFallback = html.indexOf('"', startFallback);
         console.log("Fallback forced start position:", startFallback, "next quote:", nextQuoteFallback);
