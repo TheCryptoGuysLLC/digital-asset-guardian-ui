@@ -31,33 +31,19 @@ exports.handler = async (event, context) => {
       const snippetEnd = Math.min(html.length, userHtmlAny + 100);
       const snippet = html.substring(snippetStart, snippetEnd);
       console.log("Extended snippet around 'userHtml':", snippet);
-      // Direct extraction from '"userHtml":"' in snippet
+      // Direct extraction: assume '"userHtml":"' is at known offset
       const userHtmlMarker = '"userHtml":"';
-      const markerOffset = snippet.indexOf(userHtmlMarker);
-      console.log("Marker offset in snippet:", markerOffset); // Debug offset
-      if (markerOffset !== -1) {
-        const start = snippetStart + markerOffset + userHtmlMarker.length; // Start after '"userHtml":"'
-        const nextQuote = html.indexOf('"', start);
-        console.log("Start position:", start, "Next quote position:", nextQuote); // Debug positions
-        if (nextQuote !== -1 && nextQuote > start) {
-          jsonString = html.substring(start, nextQuote);
-          console.log("Extracted userHtml JSON:", jsonString);
-        } else {
-          console.log("No valid end marker - start:", start, "next quote:", nextQuote);
-          throw new Error("Failed to extract userHtml JSON - no valid end marker");
-        }
+      const expectedOffset = snippet.indexOf(userHtmlMarker);
+      console.log("Expected marker offset in snippet:", expectedOffset); // Debug offset
+      const start = snippetStart + (expectedOffset !== -1 ? expectedOffset + userHtmlMarker.length : 22); // Fallback to ~2418 if indexOf fails
+      const nextQuote = html.indexOf('"', start);
+      console.log("Start position:", start, "Next quote position:", nextQuote); // Debug positions
+      if (nextQuote !== -1 && nextQuote > start) {
+        jsonString = html.substring(start, nextQuote);
+        console.log("Extracted userHtml JSON:", jsonString);
       } else {
-        // Fallback: extract from ':"' after userHtmlAny
-        const startFallback = html.indexOf(':"', userHtmlAny) + 2;
-        const nextQuoteFallback = html.indexOf('"', startFallback);
-        console.log("Fallback forced start position:", startFallback, "next quote:", nextQuoteFallback);
-        if (startFallback > userHtmlAny && nextQuoteFallback !== -1 && nextQuoteFallback > startFallback) {
-          jsonString = html.substring(startFallback, nextQuoteFallback);
-          console.log("Fallback extracted userHtml JSON:", jsonString);
-        } else {
-          console.log("Fallback extraction failed - start:", startFallback, "next quote:", nextQuoteFallback);
-          throw new Error("Failed to extract userHtml JSON - no valid markers");
-        }
+        console.log("No valid end marker - start:", start, "next quote:", nextQuote);
+        throw new Error("Failed to extract userHtml JSON - no valid end marker");
       }
     } else {
       // Fallback: raw JSON like March 31
