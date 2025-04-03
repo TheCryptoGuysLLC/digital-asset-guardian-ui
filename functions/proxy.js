@@ -1,7 +1,7 @@
 exports.handler = async (event, context) => {
   try {
     const fetch = (await import('node-fetch')).default;
-    const url = "https://script.google.com/macros/s/AKfycbz273eq-2tvp0Pv-n9t5mBiisTcvjYmsjA-TyTfdS57D2nLMdohIgmCB_WXQptlXFpv/exec?email=testuser@example.com&tier=pro";
+    const url = "https://script.google.com/macros/s/AKfycbyDvyxndPBuoh1VKrwmakRnqUtjNYltADvRoCHo7WAyWOMpB0ZfIT-rROu1siWBrbopIQ/exec?email=testuser@example.com&tier=pro";
     const response = await fetch(url, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/91.0.4472.124",
@@ -17,7 +17,7 @@ exports.handler = async (event, context) => {
     if (!response.ok) throw new Error(`Fetch failed: ${response.status} - ${response.statusText}`);
     let html = await response.text();
 
-    console.log("Full raw response from v4:", html);
+    console.log("Actual runtime response:", html); // Log exact response
     console.log("Response headers:", JSON.stringify([...response.headers]));
     console.log("Response length:", html.length);
 
@@ -26,21 +26,19 @@ exports.handler = async (event, context) => {
     if (userHtmlAny === -1) throw new Error("No userHtml found in response");
 
     const snippetStart = Math.max(0, userHtmlAny - 20);
-    const snippetEnd = Math.min(html.length, userHtmlAny + 200); // Larger window
+    const snippetEnd = Math.min(html.length, userHtmlAny + 500); // Big window for diagnostics
     const rawSnippet = html.substring(snippetStart, snippetEnd);
     console.log("Raw snippet around 'userHtml':", rawSnippet);
 
-    // Decode only the relevant segment
     const decodedSnippet = rawSnippet.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
     console.log("Decoded snippet around 'userHtml':", decodedSnippet);
 
     const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
 
-    const quoteIndex = html.indexOf('"', colonIndex + 1); // Opening quote after colon
+    const quoteIndex = html.indexOf('"', colonIndex + 1);
     if (quoteIndex === -1) throw new Error("Quote after colon not found");
 
-    // Try raw \x7b first, fallback to decoded {
     let start = html.indexOf('\\x7b', quoteIndex);
     if (start === -1) {
       console.log("No raw \\x7b found, trying decoded { - raw snippet:", html.substring(quoteIndex, quoteIndex + 50));
@@ -58,7 +56,6 @@ exports.handler = async (event, context) => {
     console.log("Char at start (raw):", html[start]);
     console.log("Raw snippet at start:", html.substring(start, start + 50));
 
-    // Extract and decode from raw string
     let jsonString = html.substring(start);
     jsonString = jsonString
       .replace(/\\"/g, '"')
@@ -100,7 +97,7 @@ exports.handler = async (event, context) => {
     console.log("Extracted userHtml JSON (raw):", jsonString);
 
     const data = JSON.parse(jsonString);
-    delete data.gasPrices;
+    delete data.gasPrices; // Remove gasPrices as per your original spec
     console.log("Parsed JSON data:", JSON.stringify(data));
 
     return {
