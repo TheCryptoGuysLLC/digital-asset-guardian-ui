@@ -32,27 +32,18 @@ exports.handler = async (event, context) => {
         console.log("Extracted userHtml JSON:", jsonString);
       } else {
         console.log("userHtml start found but no valid end - start:", userHtmlStart, "next quote:", nextQuote);
+        throw new Error("Failed to extract userHtml JSON - no valid end marker");
       }
-    }
-
-    // Fallback: raw JSON like March 31
-    if (!jsonString) {
+    } else {
+      // Fallback: raw JSON like March 31
       const jsonStart = html.indexOf('{"portfolio":');
       const jsonEnd = html.lastIndexOf('}');
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         jsonString = html.substring(jsonStart, jsonEnd + 1);
         console.log("Extracted raw portfolio JSON:", jsonString);
       } else {
-        // Fallback: any JSON-like string
-        const anyJsonStart = html.indexOf('{');
-        const anyJsonEnd = html.lastIndexOf('}');
-        if (anyJsonStart !== -1 && anyJsonEnd !== -1 && anyJsonEnd > anyJsonStart) {
-          jsonString = html.substring(anyJsonStart, anyJsonEnd + 1);
-          console.log("Extracted widest JSON:", jsonString);
-        } else {
-          console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "portfolio start:", jsonStart, "portfolio end:", anyJsonEnd, "any JSON start:", anyJsonStart, "any JSON end:", anyJsonEnd);
-          throw new Error("No userHtml or portfolio JSON found in response");
-        }
+        console.log("No JSON patterns matched - userHtml start:", userHtmlStart, "portfolio start:", jsonStart, "portfolio end:", jsonEnd);
+        throw new Error("No userHtml or portfolio JSON found in response");
       }
     }
 
@@ -68,7 +59,8 @@ exports.handler = async (event, context) => {
       data = JSON.parse(decodedJson);
       delete data.gasPrices; // Remove gasPrices as agreed
     } catch (parseError) {
-      throw new Error(`JSON parsing failed: ${parseError.message}\nDecoded string: ${decodedJson}`);
+      console.log("JSON parsing failed - decoded string:", decodedJson);
+      throw new Error(`JSON parsing failed: ${parseError.message}`);
     }
 
     return {
@@ -80,6 +72,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(data)
     };
   } catch (error) {
+    console.log("Error occurred:", error.message);
     return {
       statusCode: 500,
       headers: {
