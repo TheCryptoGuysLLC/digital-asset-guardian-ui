@@ -40,18 +40,19 @@ exports.handler = async (event, context) => {
       let end = start;
       let braceCount = 0;
       let inQuotes = false;
-      while (end < html.length) {
-        const char = html[end];
-        if (char === '"' && html[end - 1] !== '\\') inQuotes = !inQuotes; // Toggle quote state, ignore escaped quotes
+      for (let i = start; i < html.length; i++) {
+        const char = html[i];
+        if (char === '"' && (i === 0 || html[i - 1] !== '\\')) inQuotes = !inQuotes; // Toggle quote state, ignore escaped quotes
         if (!inQuotes) {
           if (char === '{') braceCount++;
-          else if (char === '}') braceCount--;
-          if (braceCount === 0 && char === '}') {
-            end++; // Include the closing brace
-            break;
+          else if (char === '}') {
+            braceCount--;
+            if (braceCount === 0) {
+              end = i + 1; // Include the closing brace
+              break;
+            }
           }
         }
-        end++;
       }
       console.log("Start position:", start, "End position:", end); // Debug positions
       if (end > start) {
@@ -109,7 +110,7 @@ exports.handler = async (event, context) => {
       try {
         data = JSON.parse(decodedJson);
         delete data.gasPrices;
-        console.log("Parsed JSON data (fallback):", JSON.stringify(data)); // Fixed line
+        console.log("Parsed JSON data (fallback):", JSON.stringify(data));
         return {
           statusCode: 200,
           headers: {
