@@ -20,21 +20,20 @@ exports.handler = async (event, context) => {
     // Log full raw response and headers for debugging
     console.log("Full raw response from v4:", html);
     console.log("Response headers:", JSON.stringify([...response.headers]));
-    console.log("Response length:", html.length); // Debug string length
+    console.log("Response length:", html.length);
 
     // Extract userHtml JSON string—anchor to 'userHtml'
     let jsonString;
     const userHtmlAny = html.indexOf('userHtml');
-    console.log("Any 'userHtml' occurrence:", userHtmlAny); // Debug position
+    console.log("Any 'userHtml' occurrence:", userHtmlAny);
     if (userHtmlAny !== -1) {
       const snippetStart = Math.max(0, userHtmlAny - 20);
       const snippetEnd = Math.min(html.length, userHtmlAny + 100);
       const snippet = html.substring(snippetStart, snippetEnd);
       console.log("Extended snippet around 'userHtml':", snippet);
-      // Direct extraction: adjust start to after '"userHtml":"'
       const userHtmlMarker = '"userHtml":"';
       const markerOffset = snippet.indexOf(userHtmlMarker);
-      console.log("Marker offset in snippet:", markerOffset); // Debug offset
+      console.log("Marker offset in snippet:", markerOffset);
       const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length + 1 : 34); // ~2420
       // Find the end of the JSON object (first balanced })
       let end = start;
@@ -42,11 +41,18 @@ exports.handler = async (event, context) => {
       let inQuotes = false;
       for (let i = start; i < html.length; i++) {
         const char = html[i];
-        if (char === '"' && (i === 0 || html[i - 1] !== '\\')) inQuotes = !inQuotes; // Toggle quote state, ignore escaped quotes
+        // Toggle inQuotes only on unescaped quotes
+        if (char === '"' && (i === 0 || html[i - 1] !== '\\')) {
+          inQuotes = !inQuotes;
+          console.log(`Quote toggle at ${i}: inQuotes = ${inQuotes}`);
+        }
         if (!inQuotes) {
-          if (char === '{') braceCount++;
-          else if (char === '}') {
+          if (char === '{') {
+            braceCount++;
+            console.log(`Open brace at ${i}: braceCount = ${braceCount}`);
+          } else if (char === '}') {
             braceCount--;
+            console.log(`Close brace at ${i}: braceCount = ${braceCount}`);
             if (braceCount === 0) {
               end = i + 1; // Include the closing brace
               break;
@@ -54,24 +60,24 @@ exports.handler = async (event, context) => {
           }
         }
       }
-      console.log("Start position:", start, "End position:", end); // Debug positions
+      console.log("Start position:", start, "End position:", end);
       if (end > start) {
         jsonString = html.substring(start, end);
-        console.log("Extracted userHtml JSON (raw):", jsonString); // Raw before decode
+        console.log("Extracted userHtml JSON (raw):", jsonString);
         // Decode escaped string—handle all escapes properly
         const decodedJson = jsonString
-          .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Hex escapes like \x7b
-          .replace(/\\"/g, '"')   // Escaped quotes
-          .replace(/\\n/g, '\n')  // Newlines
-          .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16))) // Unicode
-          .replace(/^[^[{]+/, ''); // Strip any leading garbage before { or [
-        console.log("Decoded JSON:", decodedJson); // Debug decoded string
+          .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+          .replace(/\\"/g, '"')
+          .replace(/\\n/g, '\n')
+          .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+          .replace(/^[^[{]+/, '');
+        console.log("Decoded JSON:", decodedJson);
         // Parse the JSON
         let data;
         try {
           data = JSON.parse(decodedJson);
-          delete data.gasPrices; // Remove gasPrices as agreed
-          console.log("Parsed JSON data:", JSON.stringify(data)); // Debug parsed output
+          delete data.gasPrices;
+          console.log("Parsed JSON data:", JSON.stringify(data));
           return {
             statusCode: 200,
             headers: {
@@ -92,7 +98,7 @@ exports.handler = async (event, context) => {
       // Fallback: raw JSON like March 31
       const jsonStart = html.indexOf('{"portfolio":');
       const jsonEnd = html.lastIndexOf('}');
-      console.log("Fallback search - portfolio start:", jsonStart, "portfolio end:", jsonEnd); // Debug fallback
+      console.log("Fallback search - portfolio start:", jsonStart, "portfolio end:", jsonEnd);
       if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
         jsonString = html.substring(jsonStart, jsonEnd + 1);
         console.log("Extracted raw portfolio JSON:", jsonString);
