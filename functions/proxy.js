@@ -35,7 +35,7 @@ exports.handler = async (event, context) => {
       const userHtmlMarker = '"userHtml":"';
       const markerOffset = snippet.indexOf(userHtmlMarker);
       console.log("Marker offset in snippet:", markerOffset); // Debug offset
-      const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length : 32); // ~2418 if indexOf fails
+      const start = snippetStart + (markerOffset !== -1 ? markerOffset + userHtmlMarker.length : 33); // ~2419 if indexOf fails
       const nextQuote = html.indexOf('"', start);
       console.log("Start position:", start, "Next quote position:", nextQuote); // Debug positions
       if (nextQuote !== -1 && nextQuote > start) {
