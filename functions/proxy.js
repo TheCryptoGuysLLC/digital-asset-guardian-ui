@@ -30,14 +30,17 @@ exports.handler = async (event, context) => {
     const snippet = html.substring(snippetStart, snippetEnd);
     console.log("Extended snippet around 'userHtml':", snippet);
 
+    // Decode hex escapes before searching
+    html = html.replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+
     const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
-    const startBraceIndex = html.indexOf('\x7b', colonIndex + 1); // First \x7b after colon
+    const startBraceIndex = html.indexOf('{', colonIndex + 1); // First { after colon
     if (startBraceIndex === -1) {
       console.log("No brace found after colon - snippet:", html.substring(colonIndex, colonIndex + 50));
       throw new Error("Opening brace after colon not found");
     }
-    const start = startBraceIndex; // Start at \x7b
+    const start = startBraceIndex; // Start at {
     console.log("Colon index:", colonIndex);
     console.log("Start brace index:", startBraceIndex);
     console.log("Start position:", start);
@@ -46,7 +49,6 @@ exports.handler = async (event, context) => {
 
     let jsonString = html.substring(start);
     jsonString = jsonString
-      .replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
       .replace(/\\"/g, '"')
       .replace(/\\n/g, '\n')
       .replace(/\\u([0-9A-Fa-f]{4})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
