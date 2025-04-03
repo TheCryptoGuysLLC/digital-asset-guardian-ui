@@ -26,7 +26,7 @@ exports.handler = async (event, context) => {
     if (userHtmlAny === -1) throw new Error("No userHtml found in response");
 
     const snippetStart = Math.max(0, userHtmlAny - 20);
-    const snippetEnd = Math.min(html.length, userHtmlAny + 100);
+    const snippetEnd = Math.min(html.length, userHtmlAny + 200); // Larger window
     const rawSnippet = html.substring(snippetStart, snippetEnd);
     console.log("Raw snippet around 'userHtml':", rawSnippet);
 
@@ -37,13 +37,20 @@ exports.handler = async (event, context) => {
     const colonIndex = html.indexOf(':', userHtmlAny);
     if (colonIndex === -1) throw new Error("Colon after userHtml not found");
 
-    // Find the raw { position after "userHtml":"
     const quoteIndex = html.indexOf('"', colonIndex + 1); // Opening quote after colon
     if (quoteIndex === -1) throw new Error("Quote after colon not found");
-    const start = html.indexOf('\\x7b', quoteIndex); // Raw { position
+
+    // Try raw \x7b first, fallback to decoded {
+    let start = html.indexOf('\\x7b', quoteIndex);
     if (start === -1) {
-      console.log("No brace found after quote - raw snippet:", html.substring(quoteIndex, quoteIndex + 50));
-      throw new Error("Opening brace after quote not found");
+      console.log("No raw \\x7b found, trying decoded { - raw snippet:", html.substring(quoteIndex, quoteIndex + 50));
+      const decodedHtml = html.substring(quoteIndex).replace(/\\x([0-9A-Fa-f]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      const braceIndex = decodedHtml.indexOf('{');
+      if (braceIndex === -1) {
+        console.log("No decoded { found either - decoded snippet:", decodedHtml.substring(0, 50));
+        throw new Error("Opening brace after quote not found in raw or decoded string");
+      }
+      start = quoteIndex + braceIndex;
     }
     console.log("Colon index:", colonIndex);
     console.log("Quote index:", quoteIndex);
